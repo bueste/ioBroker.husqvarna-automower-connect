@@ -2341,7 +2341,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 					data_command.data = { type: 'ParkUntilFurtherNotice' };
 					url = 'actions';
 				} else if (command === 'CUTTINGHEIGHT') {
-					if (Number(state.val) >= 1 && Number(state.val) >= 9) {
+					if (Number(state.val) >= 1 && Number(state.val) <= 9) {
 						data_command.data = { type: 'settings' };
 						data_command.attributes = { cuttingHeight: state.val };
 						url = 'settings';
