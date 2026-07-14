@@ -25,7 +25,7 @@ All product and company names or logos are trademarks™ or registered® tradema
 
 ## Installation requirements
 
--   node.js >= v18 is required
+-   node.js >= v22 is required
 -   ioBroker.js-controller >=5.0.19 is required
 -   ioBroker.admin >= v7.4.10 is required
 -   This adapter uses the Husqvarna Automower Connect API to request data (via WebSocket) and send commands (via REST API) for your Husqvarna lawn mower.
@@ -409,8 +409,15 @@ function round(digit, digits) {
 -   (bueste) fix: `.ACTIONS.CUTTINGHEIGHT` was `undefined` until the first WebSocket update after adapter start (REST response returns `cuttingHeight` as a plain number, not `{height: N}`)
 -   (bueste) fix: memory leak in the internal capabilities cache (grew by one duplicate entry on every statistics poll)
 -   (bueste) added `.ACTIONS.CONFIRMERROR`, `.ACTIONS.RESETCUTTINGBLADEUSAGETIME`, `.ACTIONS.workAreaSettings` (set cutting height/enabled per work area) and `.ACTIONS.stayOutZoneSettings` (enable/disable a stay-out zone)
--   (bueste) added `.messages` channel with the error/event message history (REST + live WebSocket updates)
+-   (bueste) added `.messages` channel with the error/event message history (REST on startup/on-demand + live WebSocket updates)
 -   (bueste) added missing `.workAreas.[workAreaId]` fields: `type`, `useGlobalCuttingHeight`, `orientation`, `orientationShift`, `currentOrientation`, `lastTimeAbandoned`
+-   (bueste) BREAKING: node.js >= v22 is required (v18 reached end-of-life April 2025, v20 reached end-of-life April 2026)
+-   (bueste) security: `applicationSecret`, `applicationKey` and the live OAuth access token were logged in plaintext at debug level in several places; added redaction so they can no longer end up in a shared logfile
+-   (bueste) security: token invalidation on adapter stop used a malformed request (wrong endpoint/headers) and never actually revoked the token with Husqvarna; fixed to use the correct `POST /v1/oauth2/revoke`
+-   (bueste) security: `axios` updated 1.8.4 -> 1.18.1 (fixes several CVEs, including the critical CVE-2026-40175) and `ws` updated 8.18.3 -> 8.21.1 (fixes two High-severity CVEs); `npm audit --omit=dev` now reports 0 vulnerabilities
+-   (bueste) fix: `statisticsInterval` validation was permanently unreachable (`&&` instead of `||`), so any configured value was silently accepted
+-   (bueste) hardening: Application Key/Secret format check is now anchored; `stayOutZoneSettings.zoneId` is URL-encoded before use
+-   (bueste) optimization: message history is no longer re-polled on every statistics interval tick (only on startup/on-demand), to avoid roughly doubling the request volume against Husqvarna's 10 000 requests/month budget
 
 ### 0.6.0-beta.12 **WORK IN PROGRESS**
 
