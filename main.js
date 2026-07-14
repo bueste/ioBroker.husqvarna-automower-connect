@@ -34,9 +34,13 @@ class HusqvarnaAutomower extends utils.Adapter {
 		this.mowerData = null;
 
 		this.firstStart = true;
+		this.statisticsPollInProgress = false;
 
 		this.autoRestartTimeout = null;
 		this.ping = null;
+		// exponential backoff for WebSocket reconnects (autoRestart()) - reset to the base delay on every
+		// successful (re-)connection, see the 'open' handler in connectToWS()
+		this.wsReconnectDelay = 5000;
 
 		this.statisticsInterval = null;
 
@@ -102,6 +106,14 @@ class HusqvarnaAutomower extends utils.Adapter {
 
 			// get statistics
 			this.statisticsInterval = this.setInterval(async () => {
+				// guard against overlapping runs: with a short statisticsInterval and a slow/degraded connection,
+				// a cycle could still be in flight when the next one is due to start, which risked concurrent
+				// getMowerData()/fillObjects() calls racing each other on the same state tree.
+				if (this.statisticsPollInProgress) {
+					this.log.debug('[statisticsInterval]: previous poll still in progress, skipping this tick.');
+					return;
+				}
+				this.statisticsPollInProgress = true;
 				try {
 					await this.getMowerData();
 					await this.fillObjects(this.mowerData);
@@ -113,6 +125,8 @@ class HusqvarnaAutomower extends utils.Adapter {
 					// adapter startup and on-demand via ACTIONS.REFRESHSTATISTICS.
 				} catch (error) {
 					this.log.debug(`${error} (ERR_#015)`);
+				} finally {
+					this.statisticsPollInProgress = false;
 				}
 			}, this.config.statisticsInterval * 60000); // max. 10000 requests/month; (31d*24h*60min*60s*1000ms)/10000requests/month = 267840ms = 4.46min
 		} catch (error) {
@@ -125,7 +139,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 	 * passed to this.log.debug(). This matters because this adapter's own README explicitly tells users to enable
 	 * debug logging and attach the logfile when filing a GitHub issue - without redaction, the Application Secret,
 	 * Application Key and the live OAuth access token would end up in plaintext in every debug log line that logs
-	 * an axios request/response, and very likely in a publicly posted bug report sooner or later. (ERR_#0xx)
+	 * an axios request/response, and very likely in a publicly posted bug report sooner or later.
 	 *
 	 * @param {unknown} value
 	 * @returns {unknown} a deep copy of value with sensitive fields replaced by '***redacted***'
@@ -161,6 +175,29 @@ class HusqvarnaAutomower extends utils.Adapter {
 		return walk(value);
 	}
 
+	/**
+	 * Consistent, redacted debug logging for a failed axios request. Factored out because five call sites each had
+	 * a hand-written, near-identical copy of this block - which had already drifted out of sync at least once (a
+	 * copy-pasted context label pointing at the wrong function name, see git history).
+	 *
+	 * @param {string} context - short label identifying the calling function, e.g. 'getMowerData'
+	 * @param {any} error - the error caught from a failed axios request
+	 */
+	logAxiosError(context, error) {
+		if (error.response) {
+			// The request was made and the server responded with a status code that falls out of the range of 2xx
+			this.log.debug(`[${context}]: HTTP status response: ${error.response.status}; headers: ${JSON.stringify(this.redact(error.response.headers))}; data: ${JSON.stringify(this.redact(error.response.data))}`);
+		} else if (error.request) {
+			// The request was made but no response was received - error.request is an instance of XMLHttpRequest in
+			// the browser and an instance of http.ClientRequest in node.js
+			this.log.debug(`[${context}]: error request: ${error}`);
+		} else {
+			// Something happened in setting up the request that triggered an Error
+			this.log.debug(`[${context}]: error message: ${error.message}`);
+		}
+		this.log.debug(`[${context}]: error.config: ${JSON.stringify(this.redact(error.config))}`);
+	}
+
 	// https://developer.husqvarnagroup.cloud/apis/authentication-api#readme
 	async getAccessToken() {
 		await axios({
@@ -180,17 +217,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 				}
 			})
 			.catch(error => {
-				if (error.response) {
-					// The request was made and the server responded with a status code that falls out of the range of 2xx
-					this.log.debug(`[getAccessToken]: HTTP status response: ${error.response.status}; headers: ${JSON.stringify(this.redact(error.response.headers))}; data: ${JSON.stringify(this.redact(error.response.data))}`);
-				} else if (error.request) {
-					// The request was made but no response was received `error.request` is an instance of XMLHttpRequest in the browser and an instance of http.ClientRequest in node.js
-					this.log.debug(`[getAccessToken]: error request: ${error}`);
-				} else {
-					// Something happened in setting up the request that triggered an Error
-					this.log.debug(`[getAccessToken]: error message: ${error.message}`);
-				}
-				this.log.debug(`[getAccessToken]: error.config: ${JSON.stringify(this.redact(error.config))}`);
+				this.logAxiosError('getAccessToken', error);
 				throw new Error('"Automower Connect API" not reachable. (ERR_#005)');
 			});
 	}
@@ -213,17 +240,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 				this.log.debug(`[getMowerData]: response.data: ${JSON.stringify(response.data)}`);
 			})
 			.catch(error => {
-				if (error.response) {
-					// The request was made and the server responded with a status code that falls out of the range of 2xx
-					this.log.debug(`[getMowerData]: HTTP status response: ${error.response.status}; headers: ${JSON.stringify(this.redact(error.response.headers))}; data: ${JSON.stringify(error.response.data)}`);
-				} else if (error.request) {
-					// The request was made but no response was received `error.request` is an instance of XMLHttpRequest in the browser and an instance of http.ClientRequest in node.js
-					this.log.debug(`[getMowerData]: error request: ${error}`);
-				} else {
-					// Something happened in setting up the request that triggered an Error
-					this.log.debug(`[getMowerData]: error message: ${error.message}`);
-				}
-				this.log.debug(`[getMowerData]: error.config: ${JSON.stringify(this.redact(error.config))}`);
+				this.logAxiosError('getMowerData', error);
 				throw new Error('"Automower Connect API" not reachable. (ERR_#006)');
 			});
 	}
@@ -261,14 +278,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 					}
 				})
 				.catch(error => {
-					if (error.response) {
-						// The request was made and the server responded with a status code that falls out of the range of 2xx
-						this.log.debug(`[getAndFillMowerMessages]: HTTP status response: ${error.response.status}; headers: ${JSON.stringify(this.redact(error.response.headers))}; data: ${JSON.stringify(error.response.data)}`);
-					} else if (error.request) {
-						this.log.debug(`[getAndFillMowerMessages]: error request: ${error}`);
-					} else {
-						this.log.debug(`[getAndFillMowerMessages]: error message: ${error.message}`);
-					}
+					this.logAxiosError('getAndFillMowerMessages', error);
 					// intentionally not re-thrown: message history is supplementary and must not block core status updates
 				});
 		}
@@ -2153,7 +2163,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 					}
 				}
 				// update-or-insert instead of push: fillObjects() runs on every statistics poll (default every few minutes),
-				// unconditional push() would otherwise leak memory by appending a duplicate entry on every cycle (ERR_#0xx)
+				// unconditional push() would otherwise leak memory by appending a duplicate entry on every cycle
 				const capabilitiesEntry = {
 					id: mowerData.data[i].id,
 					workAreas: mowerData.data[i].attributes.capabilities.workAreas,
@@ -2191,6 +2201,9 @@ class HusqvarnaAutomower extends utils.Adapter {
 		});
 
 		this.wss.on('open', () => {
+			// connection succeeded - reset the reconnect backoff so a future failure starts from the base delay again
+			this.wsReconnectDelay = 5000;
+
 			if (this.firstStart === true) {
 				this.log.info('Connection to "Husqvarna WebSocket" established. Ready to get data...');
 				this.firstStart = false;
@@ -2636,10 +2649,16 @@ class HusqvarnaAutomower extends utils.Adapter {
 	}
 
 	async autoRestart() {
-		this.log.debug('[autoRestart]: WebSocket connection terminated by Husqvarna-Server. Reconnect again in 5 seconds...');
+		// exponential backoff, capped at 5 minutes: a persistent failure (e.g. an extended Husqvarna outage, or a
+		// reconnect that itself immediately fails) used to retry every fixed 5 seconds indefinitely, hammering
+		// Husqvarna's servers and flooding the adapter log. Doubles on every call, reset to the 5s base delay on
+		// the next successful connection (see the 'open' handler in connectToWS()).
+		const delay = this.wsReconnectDelay;
+		this.log.debug(`[autoRestart]: WebSocket connection terminated by Husqvarna-Server. Reconnect again in ${Math.round(delay / 1000)} seconds...`);
 		this.autoRestartTimeout = this.setTimeout(() => {
 			this.connectToWS();
-		}, 5000); // min. 5s = 5000ms
+		}, delay);
+		this.wsReconnectDelay = Math.min(delay * 2, 300000); // cap: max. 5min = 300000ms
 	}
 
 	/**
@@ -2674,17 +2693,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 						this.log.info('"Husqvarna Authentication API Access token" successfully invalidated.');
 					})
 					.catch(error => {
-						if (error.response) {
-							// The request was made and the server responded with a status code that falls out of the range of 2xx
-							this.log.debug(`[onUnload]: HTTP status response: ${error.response.status}; headers: ${JSON.stringify(this.redact(error.response.headers))}; data: ${JSON.stringify(error.response.data)}`);
-						} else if (error.request) {
-							// The request was made but no response was received `error.request` is an instance of XMLHttpRequest in the browser and an instance of http.ClientRequest in node.js
-							this.log.debug(`[onUnload]: error request: ${error}`);
-						} else {
-							// Something happened in setting up the request that triggered an Error
-							this.log.debug(`[onUnload]: error message: ${error.message}`);
-						}
-						this.log.debug(`[onUnload]: error.config: ${JSON.stringify(this.redact(error.config))}`);
+						this.logAxiosError('onUnload', error);
 					});
 			}
 
@@ -2741,15 +2750,15 @@ class HusqvarnaAutomower extends utils.Adapter {
 					if (startTime && startTime.val) {
 						if (Number(startTime.val) >= 0 && Number(startTime.val) <= 1439) {
 							// NOTE: "attributes" must be nested INSIDE "data" (data.attributes), not a sibling of "data" -
-							// a sibling "attributes" key is silently ignored resp. rejected by the API (ERR_#0xx).
+							// a sibling "attributes" key is silently ignored resp. rejected by the API
 							data_command.data = { type: 'Start', attributes: { duration: Number(startTime.val) } };
 							url = 'actions';
 						} else {
-							this.log.error('Inputvalue "startTime" not valid. Nothing Set. (ERR_#0xx');
+							this.log.error('Inputvalue "startTime" not valid. Nothing Set. (ERR_#016');
 							return;
 						}
 					} else {
-						this.log.error('Missing "startTime". Nothing Set. (ERR_#0xx');
+						this.log.error('Missing "startTime". Nothing Set. (ERR_#017');
 						return;
 					}
 				} else if (command === 'STARTINWORKAREA') {
@@ -2762,19 +2771,19 @@ class HusqvarnaAutomower extends utils.Adapter {
 									data_command.data = { type: 'StartInWorkArea', attributes: { duration: Number(startTime.val), workAreaId: Number(workAreaId.val) } };
 									url = 'actions';
 								} else {
-									this.log.error('Missing "workAreaId". Nothing Set. (ERR_#0xx');
+									this.log.error('Missing "workAreaId". Nothing Set. (ERR_#018');
 									return;
 								}
 							} else {
-								this.log.error('Inputvalue "workAreaId" not valid. Nothing Set. (ERR_#0xx');
+								this.log.error('Inputvalue "workAreaId" not valid. Nothing Set. (ERR_#019');
 								return;
 							}
 						} else {
-							this.log.error('Inputvalue "startTime" not valid. Nothing Set. (ERR_#0xx');
+							this.log.error('Inputvalue "startTime" not valid. Nothing Set. (ERR_#020');
 							return;
 						}
 					} else {
-						this.log.error('Missing "startTime". Nothing Set. (ERR_#0xx');
+						this.log.error('Missing "startTime". Nothing Set. (ERR_#021');
 						return;
 					}
 				} else if (command === 'RESUMESCHEDULE') {
@@ -2790,11 +2799,11 @@ class HusqvarnaAutomower extends utils.Adapter {
 							data_command.data = { type: 'Park', attributes: { duration: Number(parkTime.val) } };
 							url = 'actions';
 						} else {
-							this.log.error('Inputvalue "parkTime" not valid. Nothing Set. (ERR_#0xx');
+							this.log.error('Inputvalue "parkTime" not valid. Nothing Set. (ERR_#022');
 							return;
 						}
 					} else {
-						this.log.error('Missing "parkTime". Nothing Set. (ERR_#0xx');
+						this.log.error('Missing "parkTime". Nothing Set. (ERR_#023');
 						return;
 					}
 				} else if (command === 'PARKUNTILNEXTSCHEDULE') {
@@ -2808,29 +2817,29 @@ class HusqvarnaAutomower extends utils.Adapter {
 						data_command.data = { type: 'settings', attributes: { cuttingHeight: Number(state.val) } };
 						url = 'settings';
 					} else {
-						this.log.error('Inputvalue "CUTTINGHEIGHT" not valid. Nothing Set. (ERR_#0xx');
+						this.log.error('Inputvalue "CUTTINGHEIGHT" not valid. Nothing Set. (ERR_#024');
 						return;
 					}
 				} else if (command === 'DATETIME') {
 					if (Number(state.val) > 1725141600) {
 						// NOTE: "type" must be "settings" (like every other settings-endpoint command), not "dateTime" -
-						// the API rejects an unknown "type" value with a 400 error (ERR_#0xx).
+						// the API rejects an unknown "type" value with a 400 error
 						data_command.data = { type: 'settings', attributes: { dateTime: Number(state.val) } };
 						url = 'settings';
 					} else {
-						this.log.error('Inputvalue "DATETIME" not valid. Nothing Set. (ERR_#0xx');
+						this.log.error('Inputvalue "DATETIME" not valid. Nothing Set. (ERR_#025');
 						return;
 					}
 				} else if (command === 'HEADLIGHT') {
 					// NOTE: valid value is "ALWAYS_OFF" (underscore), not "ALWAYS OFF" (space) - the previous check could
-					// therefore never match this option and always fell through to the error branch below (ERR_#0xx).
+					// therefore never match this option and always fell through to the error branch below
 					if (state.val === 'ALWAYS_ON' || state.val === 'ALWAYS_OFF' || state.val === 'EVENING_ONLY' || state.val === 'EVENING_AND_NIGHT') {
 						// NOTE: "type" must be "settings" and the mode goes into a nested "headlight" object, not
 						// flat as "attributes.mode" - see set_headlight_mode() in Husqvarna's own aioautomower client.
 						data_command.data = { type: 'settings', attributes: { headlight: { mode: state.val } } };
 						url = 'settings';
 					} else {
-						this.log.error('Inputvalue "HEADLIGHT" not valid. Nothing Set. (ERR_#0xx');
+						this.log.error('Inputvalue "HEADLIGHT" not valid. Nothing Set. (ERR_#026');
 						return;
 					}
 				} else if (command === 'CONFIRMERROR') {
@@ -2851,7 +2860,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 							if (Number(cuttingHeight.val) >= 0 && Number(cuttingHeight.val) <= 100) {
 								attributes.cuttingHeight = Number(cuttingHeight.val);
 							} else {
-								this.log.error('Inputvalue "workAreaSettings.cuttingHeight" not valid. Nothing Set. (ERR_#0xx');
+								this.log.error('Inputvalue "workAreaSettings.cuttingHeight" not valid. Nothing Set. (ERR_#027');
 								return;
 							}
 						}
@@ -2859,7 +2868,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 							attributes.enable = Boolean(enabled.val);
 						}
 						if (Object.keys(attributes).length === 0) {
-							this.log.error('Neither "workAreaSettings.cuttingHeight" nor "workAreaSettings.enabled" set. Nothing Set. (ERR_#0xx');
+							this.log.error('Neither "workAreaSettings.cuttingHeight" nor "workAreaSettings.enabled" set. Nothing Set. (ERR_#028');
 							return;
 						}
 						// PATCH .../workAreas/{workAreaId}
@@ -2867,7 +2876,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 						url = `workAreas/${Number(workAreaId.val)}`;
 						method = 'PATCH';
 					} else {
-						this.log.error('Missing/invalid "workAreaSettings.workAreaId". Nothing Set. (ERR_#0xx');
+						this.log.error('Missing/invalid "workAreaSettings.workAreaId". Nothing Set. (ERR_#029');
 						return;
 					}
 				} else if (command === 'APPLYSTAYOUTZONESETTINGS') {
@@ -2877,11 +2886,11 @@ class HusqvarnaAutomower extends utils.Adapter {
 						// PATCH .../stayOutZones/{zoneId}
 						data_command.data = { type: 'stayOutZone', id: zoneId.val, attributes: { enable: Boolean(enabled && enabled.val) } };
 						// encodeURIComponent(): zoneId is a free-text string state (unlike workAreaId, which is numeric and
-						// therefore safe by construction) - never interpolate it into a URL unencoded (ERR_#0xx)
+						// therefore safe by construction) - never interpolate it into a URL unencoded
 						url = `stayOutZones/${encodeURIComponent(zoneId.val)}`;
 						method = 'PATCH';
 					} else {
-						this.log.error('Missing "stayOutZoneSettings.zoneId". Nothing Set. (ERR_#0xx');
+						this.log.error('Missing "stayOutZoneSettings.zoneId". Nothing Set. (ERR_#030');
 						return;
 					}
 				} else if (command === 'SET') {
@@ -2912,11 +2921,11 @@ class HusqvarnaAutomower extends utils.Adapter {
 										workAreaId: scheduleWorkAreaId.val,
 									});
 								} else {
-									this.log.error('Inputvalue "SCHEDULE" not valid. Nothing Set. (ERR_#0xx');
+									this.log.error('Inputvalue "SCHEDULE" not valid. Nothing Set. (ERR_#031');
 									return;
 								}
 							} else {
-								this.log.error('Inputvalue "SCHEDULE" not valid. Nothing Set. (ERR_#0xx');
+								this.log.error('Inputvalue "SCHEDULE" not valid. Nothing Set. (ERR_#032');
 								return;
 							}
 							url = `workAreas/${Number(scheduleWorkAreaId.val)}/calendar`;
@@ -2935,11 +2944,11 @@ class HusqvarnaAutomower extends utils.Adapter {
 										sunday: scheduleSunday.val,
 									});
 								} else {
-									this.log.error('Inputvalue "SCHEDULE" not valid. Nothing Set. (ERR_#0xx');
+									this.log.error('Inputvalue "SCHEDULE" not valid. Nothing Set. (ERR_#033');
 									return;
 								}
 							} else {
-								this.log.error('Inputvalue "SCHEDULE" not valid. Nothing Set. (ERR_#0xx');
+								this.log.error('Inputvalue "SCHEDULE" not valid. Nothing Set. (ERR_#034');
 								return;
 							}
 							url = 'calendar';
@@ -2954,7 +2963,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 						await this.fillObjects(this.mowerData);
 						await this.getAndFillMowerMessages();
 					} catch (error) {
-						this.log.debug(`${error} (ERR_#0xx)`);
+						this.log.debug(`${error} (ERR_#035)`);
 					}
 					return;
 				}
@@ -2981,9 +2990,8 @@ class HusqvarnaAutomower extends utils.Adapter {
 						}
 					})
 					.catch(async error => {
+						this.logAxiosError('onStateChange', error);
 						if (error.response) {
-							// The request was made and the server responded with a status code that falls out of the range of 2xx
-							this.log.debug(`[onStateChange]: HTTP error response: ${error.response.status}; headers: ${JSON.stringify(this.redact(error.response.headers))}; data: ${JSON.stringify(error.response.data)}`);
 							if (error.response.status === 400) {
 								// Invalid schedule format in request body. Parsing message: No tasks.
 								this.log.info(`${error.response.data.errors[0].detail} Nothing set.`);
@@ -3005,14 +3013,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 								});
 								this.log.info(`${error.response.data.errors[0].detail} Nothing set.`);
 							}
-						} else if (error.request) {
-							// The request was made but no response was received `error.request` is an instance of XMLHttpRequest in the browser and an instance of http.ClientRequest in node.js
-							this.log.debug(`[onStateChange]: error request: ${error}`);
-						} else {
-							// Something happened in setting up the request that triggered an Error
-							this.log.debug(`[onStateChange]: error message: ${error.message}`);
 						}
-						this.log.debug(`[onStateChange]: error.config: ${JSON.stringify(this.redact(error.config))}`);
 					});
 			} else {
 				// The state was changed by system
