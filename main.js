@@ -13,7 +13,7 @@ const axios = require('axios');
 const WebSocket = require('ws');
 
 // variables
-const isValidApplicationCredential = /[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}/; // format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+const isValidApplicationCredential = /^[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}$/; // format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (anchored: without ^/$ any string merely *containing* this pattern would pass)
 
 class HusqvarnaAutomower extends utils.Adapter {
 	/**
@@ -55,8 +55,11 @@ class HusqvarnaAutomower extends utils.Adapter {
 		this.setState('info.connection', false, true);
 
 		// The adapters config (in the instance object everything under the attribute "native") is accessible via this.config:
-		this.log.debug(`config.applicationKey: ${this.config.applicationKey}`);
-		this.log.debug(`config.applicationSecret: ${this.config.applicationSecret}`);
+		// NOTE: never log the actual applicationKey/applicationSecret values, even at debug level - this adapter's
+		// own README tells users to enable debug logging and attach the logfile when filing a GitHub issue, and
+		// the Application Secret in particular is a credential, not just an identifier.
+		this.log.debug(`config.applicationKey: ${this.config.applicationKey ? '[set]' : '[missing]'}`);
+		this.log.debug(`config.applicationSecret: ${this.config.applicationSecret ? '[set]' : '[missing]'}`);
 		this.log.debug(`config.statisticsInterval: ${this.config.statisticsInterval}`);
 
 		// check applicationKey
@@ -70,7 +73,9 @@ class HusqvarnaAutomower extends utils.Adapter {
 			return;
 		}
 		// check statisticsInterval
-		if (this.config.statisticsInterval < 5 && this.config.statisticsInterval > 10080) {
+		// NOTE: this used "&&" instead of "||", which made the check permanently unreachable (a number can never be
+		// both < 5 and > 10080 at the same time) - any configured value, including 0 or negative, silently passed.
+		if (Number(this.config.statisticsInterval) < 5 || Number(this.config.statisticsInterval) > 10080) {
 			this.log.error('"Time interval to retrieve statistical values" is not valid (5 <= t <= 10080 minutes) (ERR_#003)');
 			return;
 		}
@@ -100,7 +105,12 @@ class HusqvarnaAutomower extends utils.Adapter {
 				try {
 					await this.getMowerData();
 					await this.fillObjects(this.mowerData);
-					await this.getAndFillMowerMessages();
+					// NOTE: message history is deliberately NOT re-fetched here on every tick. New messages already
+					// arrive live via the WebSocket "message" push event (see connectToWS()); polling the full
+					// GET .../messages list on every statistics cycle would double the request volume against
+					// Husqvarna's 10 000 requests/month budget for anyone using a short statisticsInterval, for a
+					// list that in the steady state rarely changes between polls anyway. It is still refreshed on
+					// adapter startup and on-demand via ACTIONS.REFRESHSTATISTICS.
 				} catch (error) {
 					this.log.debug(`${error} (ERR_#015)`);
 				}
@@ -108,6 +118,47 @@ class HusqvarnaAutomower extends utils.Adapter {
 		} catch (error) {
 			this.log.error(`${error} (ERR_#004)`);
 		}
+	}
+
+	/**
+	 * Returns a deep copy of the given value with known-sensitive fields masked. Used everywhere before a value is
+	 * passed to this.log.debug(). This matters because this adapter's own README explicitly tells users to enable
+	 * debug logging and attach the logfile when filing a GitHub issue - without redaction, the Application Secret,
+	 * Application Key and the live OAuth access token would end up in plaintext in every debug log line that logs
+	 * an axios request/response, and very likely in a publicly posted bug report sooner or later. (ERR_#0xx)
+	 *
+	 * @param {unknown} value
+	 * @returns {unknown} a deep copy of value with sensitive fields replaced by '***redacted***'
+	 */
+	redact(value) {
+		const SENSITIVE_KEYS = new Set(['authorization', 'x-api-key', 'access_token', 'refresh_token', 'client_secret', 'client_id', 'applicationkey', 'applicationsecret']);
+		const seen = new WeakSet();
+		const walk = input => {
+			if (input === null || typeof input !== 'object') {
+				return input;
+			}
+			if (seen.has(input)) {
+				return '[circular]';
+			}
+			seen.add(input);
+			if (Array.isArray(input)) {
+				return input.map(walk);
+			}
+			const out = {};
+			for (const [key, val] of Object.entries(input)) {
+				if (SENSITIVE_KEYS.has(key.toLowerCase())) {
+					out[key] = '***redacted***';
+				} else if (key === 'data' && typeof val === 'string' && (val.includes('client_secret') || val.includes('client_id'))) {
+					// axios request body for the "get access token" call is a raw x-www-form-urlencoded string,
+					// not an object, so the key-based masking above does not apply to it - mask it explicitly.
+					out[key] = val.replace(/client_secret=[^&]*/i, 'client_secret=***redacted***').replace(/client_id=[^&]*/i, 'client_id=***redacted***');
+				} else {
+					out[key] = walk(val);
+				}
+			}
+			return out;
+		};
+		return walk(value);
 	}
 
 	// https://developer.husqvarnagroup.cloud/apis/authentication-api#readme
@@ -118,7 +169,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 			data: `grant_type=client_credentials&client_id=${this.config.applicationKey}&client_secret=${this.config.applicationSecret}`,
 		})
 			.then(response => {
-				this.log.debug(`[getAccessToken]: HTTP status response: ${response.status} ${response.statusText}; config: ${JSON.stringify(response.config)}; headers: ${JSON.stringify(response.headers)}; data: ${JSON.stringify(response.data)}`);
+				this.log.debug(`[getAccessToken]: HTTP status response: ${response.status} ${response.statusText}; config: ${JSON.stringify(this.redact(response.config))}; headers: ${JSON.stringify(this.redact(response.headers))}; data: ${JSON.stringify(this.redact(response.data))}`);
 
 				this.access_token = response.data.access_token;
 
@@ -131,7 +182,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 			.catch(error => {
 				if (error.response) {
 					// The request was made and the server responded with a status code that falls out of the range of 2xx
-					this.log.debug(`[getAccessToken]: HTTP status response: ${error.response.status}; headers: ${JSON.stringify(error.response.headers)}; data: ${JSON.stringify(error.response.data)}`);
+					this.log.debug(`[getAccessToken]: HTTP status response: ${error.response.status}; headers: ${JSON.stringify(this.redact(error.response.headers))}; data: ${JSON.stringify(this.redact(error.response.data))}`);
 				} else if (error.request) {
 					// The request was made but no response was received `error.request` is an instance of XMLHttpRequest in the browser and an instance of http.ClientRequest in node.js
 					this.log.debug(`[getAccessToken]: error request: ${error}`);
@@ -139,7 +190,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 					// Something happened in setting up the request that triggered an Error
 					this.log.debug(`[getAccessToken]: error message: ${error.message}`);
 				}
-				this.log.debug(`[getAccessToken]: error.config: ${JSON.stringify(error.config)}`);
+				this.log.debug(`[getAccessToken]: error.config: ${JSON.stringify(this.redact(error.config))}`);
 				throw new Error('"Automower Connect API" not reachable. (ERR_#005)');
 			});
 	}
@@ -156,7 +207,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 			},
 		})
 			.then(async response => {
-				this.log.debug(`[getMowerData]: HTTP status response: ${response.status} ${response.statusText}; config: ${JSON.stringify(response.config)}; headers: ${JSON.stringify(response.headers)}; data: ${JSON.stringify(response.data)}`);
+				this.log.debug(`[getMowerData]: HTTP status response: ${response.status} ${response.statusText}; config: ${JSON.stringify(this.redact(response.config))}; headers: ${JSON.stringify(this.redact(response.headers))}; data: ${JSON.stringify(response.data)}`);
 
 				this.mowerData = response.data;
 				this.log.debug(`[getMowerData]: response.data: ${JSON.stringify(response.data)}`);
@@ -164,7 +215,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 			.catch(error => {
 				if (error.response) {
 					// The request was made and the server responded with a status code that falls out of the range of 2xx
-					this.log.debug(`[getMowerData]: HTTP status response: ${error.response.status}; headers: ${JSON.stringify(error.response.headers)}; data: ${JSON.stringify(error.response.data)}`);
+					this.log.debug(`[getMowerData]: HTTP status response: ${error.response.status}; headers: ${JSON.stringify(this.redact(error.response.headers))}; data: ${JSON.stringify(error.response.data)}`);
 				} else if (error.request) {
 					// The request was made but no response was received `error.request` is an instance of XMLHttpRequest in the browser and an instance of http.ClientRequest in node.js
 					this.log.debug(`[getMowerData]: error request: ${error}`);
@@ -172,7 +223,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 					// Something happened in setting up the request that triggered an Error
 					this.log.debug(`[getMowerData]: error message: ${error.message}`);
 				}
-				this.log.debug(`[getMowerData]: error.config: ${JSON.stringify(error.config)}`);
+				this.log.debug(`[getMowerData]: error.config: ${JSON.stringify(this.redact(error.config))}`);
 				throw new Error('"Automower Connect API" not reachable. (ERR_#006)');
 			});
 	}
@@ -212,7 +263,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 				.catch(error => {
 					if (error.response) {
 						// The request was made and the server responded with a status code that falls out of the range of 2xx
-						this.log.debug(`[getAndFillMowerMessages]: HTTP status response: ${error.response.status}; headers: ${JSON.stringify(error.response.headers)}; data: ${JSON.stringify(error.response.data)}`);
+						this.log.debug(`[getAndFillMowerMessages]: HTTP status response: ${error.response.status}; headers: ${JSON.stringify(this.redact(error.response.headers))}; data: ${JSON.stringify(error.response.data)}`);
 					} else if (error.request) {
 						this.log.debug(`[getAndFillMowerMessages]: error request: ${error}`);
 					} else {
@@ -2601,33 +2652,41 @@ class HusqvarnaAutomower extends utils.Adapter {
 			// Here you must clear all timeouts or intervals that may still be active
 
 			// invalidating Token
-			await axios({
-				url: `https://api.authentication.husqvarnagroup.dev/v1/token/${this.access_token}`,
-				method: 'DELETE',
-				headers: {
-					'X-Api-Key': this.access_token,
-					'Authorization-Provider': 'husqvarna',
-				},
-			})
-				.then(response => {
-					this.log.debug(`[onUnload]: HTTP status response: ${response.status} ${response.statusText}; config: ${JSON.stringify(response.config)}; headers: ${JSON.stringify(response.headers)}; data: ${JSON.stringify(response.data)}`);
+			// NOTE: this used to call DELETE /v1/token/{token} with 'X-Api-Key': this.access_token, which is not a
+			// valid request (the access token was sent where the Application Key belongs, and no Authorization
+			// header was sent at all) and therefore never actually invalidated anything - the "success" case below
+			// was in fact just always hitting the generic 403-from-a-malformed-request error path. The correct,
+			// currently documented endpoint is POST /v1/oauth2/revoke with the token authenticated via a Bearer
+			// header, see https://developer.husqvarnagroup.cloud/apis/authentication-api#readme
+			if (this.access_token) {
+				await axios({
+					method: 'POST',
+					url: 'https://api.authentication.husqvarnagroup.dev/v1/oauth2/revoke',
+					headers: {
+						'Content-Type': 'application/x-www-form-urlencoded',
+						Authorization: `Bearer ${this.access_token}`,
+						Accept: '*/*',
+					},
+					data: `token=${this.access_token}`,
 				})
-				.catch(error => {
-					if (error.response) {
-						// The request was made and the server responded with a status code that falls out of the range of 2xx
-						this.log.debug(`[onUnload]: HTTP status response: ${error.response.status}; headers: ${JSON.stringify(error.response.headers)}; data: ${JSON.stringify(error.response.data)}`);
-						if (error.response.status === 403) {
-							this.log.info('"Husqvarna Authentication API Access token" successful invalidated.');
+					.then(response => {
+						this.log.debug(`[onUnload]: HTTP status response: ${response.status} ${response.statusText}; config: ${JSON.stringify(this.redact(response.config))}; headers: ${JSON.stringify(this.redact(response.headers))}; data: ${JSON.stringify(response.data)}`);
+						this.log.info('"Husqvarna Authentication API Access token" successfully invalidated.');
+					})
+					.catch(error => {
+						if (error.response) {
+							// The request was made and the server responded with a status code that falls out of the range of 2xx
+							this.log.debug(`[onUnload]: HTTP status response: ${error.response.status}; headers: ${JSON.stringify(this.redact(error.response.headers))}; data: ${JSON.stringify(error.response.data)}`);
+						} else if (error.request) {
+							// The request was made but no response was received `error.request` is an instance of XMLHttpRequest in the browser and an instance of http.ClientRequest in node.js
+							this.log.debug(`[onUnload]: error request: ${error}`);
+						} else {
+							// Something happened in setting up the request that triggered an Error
+							this.log.debug(`[onUnload]: error message: ${error.message}`);
 						}
-					} else if (error.request) {
-						// The request was made but no response was received `error.request` is an instance of XMLHttpRequest in the browser and an instance of http.ClientRequest in node.js
-						this.log.debug(`[getMowerData]: error request: ${error}`);
-					} else {
-						// Something happened in setting up the request that triggered an Error
-						this.log.debug(`[getMowerData]: error message: ${error.message}`);
-					}
-					this.log.debug(`[getMowerData]: error.config: ${JSON.stringify(error.config)}`);
-				});
+						this.log.debug(`[onUnload]: error.config: ${JSON.stringify(this.redact(error.config))}`);
+					});
+			}
 
 			this.autoRestartTimeout && this.clearTimeout(this.autoRestartTimeout);
 			this.ping && this.clearTimeout(this.ping);
@@ -2817,7 +2876,9 @@ class HusqvarnaAutomower extends utils.Adapter {
 					if (zoneId && zoneId.val) {
 						// PATCH .../stayOutZones/{zoneId}
 						data_command.data = { type: 'stayOutZone', id: zoneId.val, attributes: { enable: Boolean(enabled && enabled.val) } };
-						url = `stayOutZones/${zoneId.val}`;
+						// encodeURIComponent(): zoneId is a free-text string state (unlike workAreaId, which is numeric and
+						// therefore safe by construction) - never interpolate it into a URL unencoded (ERR_#0xx)
+						url = `stayOutZones/${encodeURIComponent(zoneId.val)}`;
 						method = 'PATCH';
 					} else {
 						this.log.error('Missing "stayOutZoneSettings.zoneId". Nothing Set. (ERR_#0xx');
@@ -2858,7 +2919,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 								this.log.error('Inputvalue "SCHEDULE" not valid. Nothing Set. (ERR_#0xx');
 								return;
 							}
-							url = `workAreas/${scheduleWorkAreaId.val}/calendar`;
+							url = `workAreas/${Number(scheduleWorkAreaId.val)}/calendar`;
 						} else {
 							if (scheduleStart && scheduleDuration && scheduleMonday && scheduleThuesday && scheduleWednesday && scheduleThursday && scheduleFriday && scheduleSaturday && scheduleSunday) {
 								if (scheduleMonday.val || scheduleThuesday.val || scheduleWednesday.val || scheduleThursday.val || scheduleFriday.val || scheduleSaturday.val || scheduleSunday.val) {
@@ -2914,7 +2975,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 					data: 'data' in data_command ? data_command : undefined,
 				})
 					.then(response => {
-						this.log.debug(`[onStateChange]: HTTP status response: ${response.status} ${response.statusText}; config: ${JSON.stringify(response.config)}; headers: ${response.headers}; data: ${JSON.stringify(response.data)}`);
+						this.log.debug(`[onStateChange]: HTTP status response: ${response.status} ${response.statusText}; config: ${JSON.stringify(this.redact(response.config))}; headers: ${JSON.stringify(this.redact(response.headers))}; data: ${JSON.stringify(response.data)}`);
 						if (response.status === 202) {
 							this.log.info(`${response.statusText}. Command ${command} Set.`);
 						}
@@ -2922,7 +2983,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 					.catch(async error => {
 						if (error.response) {
 							// The request was made and the server responded with a status code that falls out of the range of 2xx
-							this.log.debug(`[onStateChange]: HTTP error response: ${error.response.status}; headers: ${error.response.headers}; data: ${JSON.stringify(error.response.data)}`);
+							this.log.debug(`[onStateChange]: HTTP error response: ${error.response.status}; headers: ${JSON.stringify(this.redact(error.response.headers))}; data: ${JSON.stringify(error.response.data)}`);
 							if (error.response.status === 400) {
 								// Invalid schedule format in request body. Parsing message: No tasks.
 								this.log.info(`${error.response.data.errors[0].detail} Nothing set.`);
@@ -2951,7 +3012,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 							// Something happened in setting up the request that triggered an Error
 							this.log.debug(`[onStateChange]: error message: ${error.message}`);
 						}
-						this.log.debug(`[onStateChange]: error.config: ${JSON.stringify(error.config)}`);
+						this.log.debug(`[onStateChange]: error.config: ${JSON.stringify(this.redact(error.config))}`);
 					});
 			} else {
 				// The state was changed by system
