@@ -89,6 +89,9 @@ class HusqvarnaAutomower extends utils.Adapter {
 			// fill in states
 			await this.fillObjects(this.mowerData);
 
+			// get message/error history (non-fatal if it fails, see getAndFillMowerMessages())
+			await this.getAndFillMowerMessages();
+
 			// establish WebSocket connection
 			await this.connectToWS();
 
@@ -97,6 +100,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 				try {
 					await this.getMowerData();
 					await this.fillObjects(this.mowerData);
+					await this.getAndFillMowerMessages();
 				} catch (error) {
 					this.log.debug(`${error} (ERR_#015)`);
 				}
@@ -171,6 +175,52 @@ class HusqvarnaAutomower extends utils.Adapter {
 				this.log.debug(`[getMowerData]: error.config: ${JSON.stringify(error.config)}`);
 				throw new Error('"Automower Connect API" not reachable. (ERR_#006)');
 			});
+	}
+
+	// https://developer.husqvarnagroup.cloud/apis/automower-connect-api#readme (GET .../messages)
+	// Fetches and stores the diagnostic/error message history for every known mower. Non-fatal on error:
+	// message history is supplementary information and must never block the core status update cycle.
+	async getAndFillMowerMessages() {
+		if (!this.mowerData || !Array.isArray(this.mowerData.data)) {
+			return;
+		}
+		for (const mower of this.mowerData.data) {
+			if (mower.type !== 'mower') {
+				continue;
+			}
+			await axios({
+				method: 'GET',
+				url: `https://api.amc.husqvarna.dev/v1/mowers/${mower.id}/messages`,
+				headers: {
+					Authorization: `Bearer ${this.access_token}`,
+					'X-Api-Key': this.config.applicationKey,
+					'Authorization-Provider': 'husqvarna',
+				},
+			})
+				.then(response => {
+					this.log.debug(`[getAndFillMowerMessages]: HTTP status response: ${response.status} ${response.statusText}; data: ${JSON.stringify(response.data)}`);
+					const messages = (response.data && response.data.data && response.data.data.attributes && response.data.data.attributes.messages) || [];
+					this.setState(`${mower.id}.messages.messages`, { val: JSON.stringify(messages), ack: true });
+					if (messages.length > 0) {
+						this.setState(`${mower.id}.messages.lastTime`, { val: messages[0].time, ack: true });
+						this.setState(`${mower.id}.messages.lastCode`, { val: messages[0].code, ack: true });
+						this.setState(`${mower.id}.messages.lastSeverity`, { val: messages[0].severity, ack: true });
+						this.setState(`${mower.id}.messages.lastLatitude`, { val: messages[0].latitude, ack: true });
+						this.setState(`${mower.id}.messages.lastLongitude`, { val: messages[0].longitude, ack: true });
+					}
+				})
+				.catch(error => {
+					if (error.response) {
+						// The request was made and the server responded with a status code that falls out of the range of 2xx
+						this.log.debug(`[getAndFillMowerMessages]: HTTP status response: ${error.response.status}; headers: ${JSON.stringify(error.response.headers)}; data: ${JSON.stringify(error.response.data)}`);
+					} else if (error.request) {
+						this.log.debug(`[getAndFillMowerMessages]: error request: ${error}`);
+					} else {
+						this.log.debug(`[getAndFillMowerMessages]: error message: ${error.message}`);
+					}
+					// intentionally not re-thrown: message history is supplementary and must not block core status updates
+				});
+		}
 	}
 
 	// https://github.com/ioBroker/ioBroker.docs/blob/master/docs/en/dev/objectsschema.md
@@ -905,6 +955,81 @@ class HusqvarnaAutomower extends utils.Adapter {
 						native: {},
 					});
 
+					// create channel "messages" (error/event history), see https://developer.husqvarnagroup.cloud/apis/Automower+Connect+API#/readme (GET .../messages)
+					await this.setObjectNotExistsAsync(`${mowerData.data[i].id}.messages`, {
+						type: 'channel',
+						common: {
+							name: 'History of diagnostic and error messages reported by the Automower (latest first).',
+						},
+						native: {},
+					});
+					await this.setObjectNotExistsAsync(`${mowerData.data[i].id}.messages.messages`, {
+						type: 'state',
+						common: {
+							name: 'Full list of messages as returned by the API (JSON array, latest first, max. ~1000 entries).',
+							type: 'array',
+							role: 'json',
+							read: true,
+							write: false,
+						},
+						native: {},
+					});
+					await this.setObjectNotExistsAsync(`${mowerData.data[i].id}.messages.lastTime`, {
+						type: 'state',
+						common: {
+							name: 'Timestamp of the latest message.',
+							type: 'number',
+							role: 'value.time',
+							read: true,
+							write: false,
+						},
+						native: {},
+					});
+					await this.setObjectNotExistsAsync(`${mowerData.data[i].id}.messages.lastCode`, {
+						type: 'state',
+						common: {
+							name: 'Error/event code of the latest message (human readable).',
+							type: 'string',
+							role: 'state',
+							read: true,
+							write: false,
+						},
+						native: {},
+					});
+					await this.setObjectNotExistsAsync(`${mowerData.data[i].id}.messages.lastSeverity`, {
+						type: 'state',
+						common: {
+							name: 'Severity of the latest message (fatal, error, warning, info, debug, sw, unknown).',
+							type: 'string',
+							role: 'state',
+							read: true,
+							write: false,
+						},
+						native: {},
+					});
+					await this.setObjectNotExistsAsync(`${mowerData.data[i].id}.messages.lastLatitude`, {
+						type: 'state',
+						common: {
+							name: 'Latitude of the mower when the latest message was raised.',
+							type: 'number',
+							role: 'value.gps.latitude',
+							read: true,
+							write: false,
+						},
+						native: {},
+					});
+					await this.setObjectNotExistsAsync(`${mowerData.data[i].id}.messages.lastLongitude`, {
+						type: 'state',
+						common: {
+							name: 'Longitude of the mower when the latest message was raised.',
+							type: 'number',
+							role: 'value.gps.longitude',
+							read: true,
+							write: false,
+						},
+						native: {},
+					});
+
 					// create channel "STAYOUTZONES" if supported
 					if (mowerData.data[i].attributes.capabilities.stayOutZones) {
 						await this.setObjectNotExistsAsync(`${mowerData.data[i].id}.stayOutZones`, {
@@ -1023,6 +1148,80 @@ class HusqvarnaAutomower extends utils.Adapter {
 									name: 'Timestamp in seconds from 1970-01-01 when the work area was last completed. The timestamp is in local time on the mower. Only available for EPOS mowers and systematic mowing work areas.',
 									type: 'number',
 									role: 'state',
+									read: true,
+									write: false,
+								},
+								native: {},
+							});
+							await this.setObjectNotExistsAsync(`${mowerData.data[i].id}.workAreas.${mowerData.data[i].attributes.workAreas[j].workAreaId}.lastTimeAbandoned`, {
+								type: 'state',
+								common: {
+									name: 'Timestamp in seconds from 1970-01-01 when the work area was last abandoned. Only available for EPOS mowers and systematic mowing work areas.',
+									type: 'number',
+									role: 'state',
+									read: true,
+									write: false,
+								},
+								native: {},
+							});
+							await this.setObjectNotExistsAsync(`${mowerData.data[i].id}.workAreas.${mowerData.data[i].attributes.workAreas[j].workAreaId}.type`, {
+								type: 'state',
+								common: {
+									name: 'Type of the work area (random or systematic mowing).',
+									type: 'string',
+									role: 'state',
+									states: {
+										random: 'Random mowing pattern (standard Automower behaviour).',
+										systematic: 'Systematic mowing pattern (EPOS mowers).',
+									},
+									read: true,
+									write: false,
+								},
+								native: {},
+							});
+							await this.setObjectNotExistsAsync(`${mowerData.data[i].id}.workAreas.${mowerData.data[i].attributes.workAreas[j].workAreaId}.useGlobalCuttingHeight`, {
+								type: 'state',
+								common: {
+									name: 'If true, the global cutting height setting is used instead of the cuttingHeight of this work area.',
+									type: 'boolean',
+									role: 'indicator',
+									read: true,
+									write: false,
+								},
+								native: {},
+							});
+							await this.setObjectNotExistsAsync(`${mowerData.data[i].id}.workAreas.${mowerData.data[i].attributes.workAreas[j].workAreaId}.orientation`, {
+								type: 'state',
+								common: {
+									name: 'Configured mowing orientation in degrees (0-1800, only for systematic mowing work areas).',
+									type: 'number',
+									role: 'value',
+									min: 0,
+									max: 1800,
+									read: true,
+									write: false,
+								},
+								native: {},
+							});
+							await this.setObjectNotExistsAsync(`${mowerData.data[i].id}.workAreas.${mowerData.data[i].attributes.workAreas[j].workAreaId}.orientationShift`, {
+								type: 'state',
+								common: {
+									name: 'Configured shift added between mowing sessions in degrees (0-1800, only for systematic mowing work areas).',
+									type: 'number',
+									role: 'value',
+									min: 0,
+									max: 1800,
+									read: true,
+									write: false,
+								},
+								native: {},
+							});
+							await this.setObjectNotExistsAsync(`${mowerData.data[i].id}.workAreas.${mowerData.data[i].attributes.workAreas[j].workAreaId}.currentOrientation`, {
+								type: 'state',
+								common: {
+									name: 'Current mowing orientation in degrees (only for systematic mowing work areas).',
+									type: 'number',
+									role: 'value',
 									read: true,
 									write: false,
 								},
@@ -1219,6 +1418,65 @@ class HusqvarnaAutomower extends utils.Adapter {
 							},
 							native: {},
 						});
+
+						// create channel "ACTIONS.workAreaSettings" (update cutting height / enabled state of a single work area)
+						await this.setObjectNotExistsAsync(`${mowerData.data[i].id}.ACTIONS.workAreaSettings`, {
+							type: 'channel',
+							common: {
+								name: 'Update the cutting height and/or enabled state of a single work area. Set workAreaId, cuttingHeight and/or enabled, then trigger APPLYWORKAREASETTINGS.',
+							},
+							native: {},
+						});
+						await this.setObjectNotExistsAsync(`${mowerData.data[i].id}.ACTIONS.workAreaSettings.workAreaId`, {
+							type: 'state',
+							common: {
+								name: 'ID of the work area to update.',
+								type: 'number',
+								role: 'state',
+								def: 0,
+								read: true,
+								write: true,
+							},
+							native: {},
+						});
+						await this.setObjectNotExistsAsync(`${mowerData.data[i].id}.ACTIONS.workAreaSettings.cuttingHeight`, {
+							type: 'state',
+							common: {
+								name: 'Cutting height in percent (0 ... 100%) to set for the selected work area.',
+								type: 'number',
+								role: 'level',
+								min: 0,
+								max: 100,
+								def: 50,
+								read: true,
+								write: true,
+							},
+							native: {},
+						});
+						await this.setObjectNotExistsAsync(`${mowerData.data[i].id}.ACTIONS.workAreaSettings.enabled`, {
+							type: 'state',
+							common: {
+								name: 'Enabled state to set for the selected work area.',
+								type: 'boolean',
+								role: 'switch.enable',
+								def: true,
+								read: true,
+								write: true,
+							},
+							native: {},
+						});
+						await this.setObjectNotExistsAsync(`${mowerData.data[i].id}.ACTIONS.workAreaSettings.APPLYWORKAREASETTINGS`, {
+							type: 'state',
+							common: {
+								name: 'Apply cuttingHeight and/or enabled to the work area given by workAreaId.',
+								type: 'boolean',
+								def: false,
+								role: 'button',
+								read: true,
+								write: true,
+							},
+							native: {},
+						});
 					}
 
 					await this.setObjectNotExistsAsync(`${mowerData.data[i].id}.ACTIONS.CUTTINGHEIGHT`, {
@@ -1261,6 +1519,53 @@ class HusqvarnaAutomower extends utils.Adapter {
 									EVENING_ONLY: 'Only in the evening.',
 									EVENING_AND_NIGHT: 'In evening and night.',
 								},
+								read: true,
+								write: true,
+							},
+							native: {},
+						});
+					}
+
+					// create channel "ACTIONS.stayOutZoneSettings" (enable/disable a single stay-out zone) if supported
+					if (mowerData.data[i].attributes.capabilities.stayOutZones) {
+						await this.setObjectNotExistsAsync(`${mowerData.data[i].id}.ACTIONS.stayOutZoneSettings`, {
+							type: 'channel',
+							common: {
+								name: 'Enable or disable a single stay-out zone. Set zoneId and enabled, then trigger APPLYSTAYOUTZONESETTINGS. Not possible while stayOutZones.dirty is true.',
+							},
+							native: {},
+						});
+						await this.setObjectNotExistsAsync(`${mowerData.data[i].id}.ACTIONS.stayOutZoneSettings.zoneId`, {
+							type: 'state',
+							common: {
+								name: 'ID (UUID) of the stay-out zone to update, e.g. taken from stayOutZones.zones.',
+								type: 'string',
+								role: 'state',
+								def: '',
+								read: true,
+								write: true,
+							},
+							native: {},
+						});
+						await this.setObjectNotExistsAsync(`${mowerData.data[i].id}.ACTIONS.stayOutZoneSettings.enabled`, {
+							type: 'state',
+							common: {
+								name: 'Enabled state to set for the selected stay-out zone.',
+								type: 'boolean',
+								role: 'switch.enable',
+								def: true,
+								read: true,
+								write: true,
+							},
+							native: {},
+						});
+						await this.setObjectNotExistsAsync(`${mowerData.data[i].id}.ACTIONS.stayOutZoneSettings.APPLYSTAYOUTZONESETTINGS`, {
+							type: 'state',
+							common: {
+								name: 'Apply enabled to the stay-out zone given by zoneId.',
+								type: 'boolean',
+								def: false,
+								role: 'button',
 								read: true,
 								write: true,
 							},
@@ -1439,6 +1744,33 @@ class HusqvarnaAutomower extends utils.Adapter {
 						},
 						native: {},
 					});
+					await this.setObjectNotExistsAsync(`${mowerData.data[i].id}.ACTIONS.RESETCUTTINGBLADEUSAGETIME`, {
+						type: 'state',
+						common: {
+							name: 'Reset the cutting blade usage time counter (statistics.cuttingBladeUsageTime). Same function as in the Automower Connect app, use after changing the blades.',
+							type: 'boolean',
+							def: false,
+							role: 'button',
+							read: true,
+							write: true,
+						},
+						native: {},
+					});
+					// create DP "ACTIONS.CONFIRMERROR" if supported
+					if (mowerData.data[i].attributes.capabilities.canConfirmError) {
+						await this.setObjectNotExistsAsync(`${mowerData.data[i].id}.ACTIONS.CONFIRMERROR`, {
+							type: 'state',
+							common: {
+								name: 'Confirm a non-fatal mower error (only works if mower.isErrorConfirmable is true).',
+								type: 'boolean',
+								def: false,
+								role: 'button',
+								read: true,
+								write: true,
+							},
+							native: {},
+						});
+					}
 
 					// subscribeStates
 					this.subscribeStates(`${mowerData.data[i].id}.ACTIONS.PAUSE`);
@@ -1449,14 +1781,22 @@ class HusqvarnaAutomower extends utils.Adapter {
 					this.subscribeStates(`${mowerData.data[i].id}.ACTIONS.start.START`);
 					if (mowerData.data[i].attributes.capabilities.workAreas) {
 						this.subscribeStates(`${mowerData.data[i].id}.ACTIONS.startInWorkArea.STARTINWORKAREA`);
+						this.subscribeStates(`${mowerData.data[i].id}.ACTIONS.workAreaSettings.APPLYWORKAREASETTINGS`);
 					}
 					this.subscribeStates(`${mowerData.data[i].id}.ACTIONS.CUTTINGHEIGHT`);
 					this.subscribeStates(`${mowerData.data[i].id}.ACTIONS.DATETIME`);
 					if (mowerData.data[i].attributes.capabilities.headlights) {
 						this.subscribeStates(`${mowerData.data[i].id}.ACTIONS.HEADLIGHT`);
 					}
+					if (mowerData.data[i].attributes.capabilities.stayOutZones) {
+						this.subscribeStates(`${mowerData.data[i].id}.ACTIONS.stayOutZoneSettings.APPLYSTAYOUTZONESETTINGS`);
+					}
 					this.subscribeStates(`${mowerData.data[i].id}.ACTIONS.schedule.SET`);
 					this.subscribeStates(`${mowerData.data[i].id}.ACTIONS.REFRESHSTATISTICS`);
+					this.subscribeStates(`${mowerData.data[i].id}.ACTIONS.RESETCUTTINGBLADEUSAGETIME`);
+					if (mowerData.data[i].attributes.capabilities.canConfirmError) {
+						this.subscribeStates(`${mowerData.data[i].id}.ACTIONS.CONFIRMERROR`);
+					}
 				} else {
 					throw new Error('No mower found, no Objects created. Check API (ERR_#007).');
 				}
@@ -1629,7 +1969,9 @@ class HusqvarnaAutomower extends utils.Adapter {
 					}
 
 					this.setState(`${mowerData.data[i].id}.ACTIONS.CUTTINGHEIGHT`, {
-						val: mowerData.data[i].attributes.settings.cuttingHeight.height,
+						// NOTE: in the REST response "settings.cuttingHeight" is a plain number, not an object with ".height"
+						// (that nested shape is only used inside the WebSocket "cuttingHeight" push event, see connectToWS()).
+						val: mowerData.data[i].attributes.settings.cuttingHeight,
 						ack: true,
 					});
 					if (mowerData.data[i].attributes.capabilities.headlights) {
@@ -1725,6 +2067,30 @@ class HusqvarnaAutomower extends utils.Adapter {
 							val: mowerData.data[i].attributes.workAreas[j].progress,
 							ack: true,
 						});
+						this.setState(`${mowerData.data[i].id}.workAreas.${mowerData.data[i].attributes.workAreas[j].workAreaId}.lastTimeAbandoned`, {
+							val: mowerData.data[i].attributes.workAreas[j].lastTimeAbandoned,
+							ack: true,
+						});
+						this.setState(`${mowerData.data[i].id}.workAreas.${mowerData.data[i].attributes.workAreas[j].workAreaId}.type`, {
+							val: mowerData.data[i].attributes.workAreas[j].type,
+							ack: true,
+						});
+						this.setState(`${mowerData.data[i].id}.workAreas.${mowerData.data[i].attributes.workAreas[j].workAreaId}.useGlobalCuttingHeight`, {
+							val: mowerData.data[i].attributes.workAreas[j].useGlobalCuttingHeight,
+							ack: true,
+						});
+						this.setState(`${mowerData.data[i].id}.workAreas.${mowerData.data[i].attributes.workAreas[j].workAreaId}.orientation`, {
+							val: mowerData.data[i].attributes.workAreas[j].orientation,
+							ack: true,
+						});
+						this.setState(`${mowerData.data[i].id}.workAreas.${mowerData.data[i].attributes.workAreas[j].workAreaId}.orientationShift`, {
+							val: mowerData.data[i].attributes.workAreas[j].orientationShift,
+							ack: true,
+						});
+						this.setState(`${mowerData.data[i].id}.workAreas.${mowerData.data[i].attributes.workAreas[j].workAreaId}.currentOrientation`, {
+							val: mowerData.data[i].attributes.workAreas[j].currentOrientation,
+							ack: true,
+						});
 						/*
 						if (mowerData.data[i].attributes.workAreas[j].calendar) {
 							this.setState(`${mowerData.data[i].id}.workAreas.${mowerData.data[i].attributes.workAreas[j].workAreaId}.calendar`, {
@@ -1735,7 +2101,19 @@ class HusqvarnaAutomower extends utils.Adapter {
 						*/
 					}
 				}
-				this.capabilities.push({ id: mowerData.data[i].id, workAreas: mowerData.data[i].attributes.capabilities.workAreas, numbersOfCalendars: Object.keys(mowerData.data[i].attributes.calendar.tasks).length });
+				// update-or-insert instead of push: fillObjects() runs on every statistics poll (default every few minutes),
+				// unconditional push() would otherwise leak memory by appending a duplicate entry on every cycle (ERR_#0xx)
+				const capabilitiesEntry = {
+					id: mowerData.data[i].id,
+					workAreas: mowerData.data[i].attributes.capabilities.workAreas,
+					numbersOfCalendars: Object.keys(mowerData.data[i].attributes.calendar.tasks).length,
+				};
+				const capabilitiesIndex = this.capabilities.findIndex(o => o.id === mowerData.data[i].id);
+				if (capabilitiesIndex === -1) {
+					this.capabilities.push(capabilitiesEntry);
+				} else {
+					this.capabilities[capabilitiesIndex] = capabilitiesEntry;
+				}
 			} else {
 				this.log.error('[fillObjects]: No values found. Nothing updated (ERR_#009)');
 			}
@@ -1795,6 +2173,32 @@ class HusqvarnaAutomower extends utils.Adapter {
 							ack: true,
 						});
 						// this.log.debug(`[wss.on - message]: message.attributes.headlight.mode: ${message.attributes.headlight.mode}`);
+					}
+
+					// message-event-v2: a single new diagnostic/error message was pushed live; update the "last..." convenience
+					// states immediately. The full history list is refreshed via getAndFillMowerMessages() (REST poll).
+					if ('message' in message.attributes) {
+						this.setState(`${message.id}.messages.lastTime`, {
+							val: message.attributes.message.time,
+							ack: true,
+						});
+						this.setState(`${message.id}.messages.lastCode`, {
+							val: message.attributes.message.code,
+							ack: true,
+						});
+						this.setState(`${message.id}.messages.lastSeverity`, {
+							val: message.attributes.message.severity,
+							ack: true,
+						});
+						this.setState(`${message.id}.messages.lastLatitude`, {
+							val: message.attributes.message.latitude,
+							ack: true,
+						});
+						this.setState(`${message.id}.messages.lastLongitude`, {
+							val: message.attributes.message.longitude,
+							ack: true,
+						});
+						// this.log.debug(`[wss.on - message]: message.attributes.message: ${JSON.stringify(message.attributes.message)}`);
 					}
 
 					if ('calendar' in message.attributes && Object.keys(message.attributes.calendar.tasks).length !== 0) {
@@ -2270,14 +2674,16 @@ class HusqvarnaAutomower extends utils.Adapter {
 
 				const data_command = {};
 				let url = '';
+				let method = 'POST';
 				const data_tasks = [];
 
 				if (command === 'START') {
 					const startTime = await this.getStateAsync(`${parentPath}.start.startTime`);
 					if (startTime && startTime.val) {
 						if (Number(startTime.val) >= 0 && Number(startTime.val) <= 1439) {
-							data_command.data = { type: 'Start' };
-							data_command.attributes = { duration: startTime.val };
+							// NOTE: "attributes" must be nested INSIDE "data" (data.attributes), not a sibling of "data" -
+							// a sibling "attributes" key is silently ignored resp. rejected by the API (ERR_#0xx).
+							data_command.data = { type: 'Start', attributes: { duration: Number(startTime.val) } };
 							url = 'actions';
 						} else {
 							this.log.error('Inputvalue "startTime" not valid. Nothing Set. (ERR_#0xx');
@@ -2294,8 +2700,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 						if (Number(startTime.val) >= 0 && Number(startTime.val) <= 1439) {
 							if (workAreaId && workAreaId.val) {
 								if (Number(workAreaId.val) > 0) {
-									data_command.data = { type: 'StartInWorkArea' };
-									data_command.attributes = { duration: startTime.val, workAreaId: workAreaId.val };
+									data_command.data = { type: 'StartInWorkArea', attributes: { duration: Number(startTime.val), workAreaId: Number(workAreaId.val) } };
 									url = 'actions';
 								} else {
 									this.log.error('Missing "workAreaId". Nothing Set. (ERR_#0xx');
@@ -2323,8 +2728,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 					const parkTime = await this.getStateAsync(`${parentPath}.park.parkTime`);
 					if (parkTime && parkTime.val) {
 						if (Number(parkTime.val) > 0) {
-							data_command.data = { type: 'Park' };
-							data_command.attributes = { duration: parkTime.val };
+							data_command.data = { type: 'Park', attributes: { duration: Number(parkTime.val) } };
 							url = 'actions';
 						} else {
 							this.log.error('Inputvalue "parkTime" not valid. Nothing Set. (ERR_#0xx');
@@ -2342,7 +2746,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 					url = 'actions';
 				} else if (command === 'CUTTINGHEIGHT') {
 					if (Number(state.val) >= 1 && Number(state.val) <= 9) {
-						data_command.data = { type: 'settings', attributes: { cuttingHeight: state.val } };
+						data_command.data = { type: 'settings', attributes: { cuttingHeight: Number(state.val) } };
 						url = 'settings';
 					} else {
 						this.log.error('Inputvalue "CUTTINGHEIGHT" not valid. Nothing Set. (ERR_#0xx');
@@ -2350,20 +2754,73 @@ class HusqvarnaAutomower extends utils.Adapter {
 					}
 				} else if (command === 'DATETIME') {
 					if (Number(state.val) > 1725141600) {
-						data_command.data = { type: 'dateTime' };
-						data_command.attributes = { dateTime: state.val };
+						// NOTE: "type" must be "settings" (like every other settings-endpoint command), not "dateTime" -
+						// the API rejects an unknown "type" value with a 400 error (ERR_#0xx).
+						data_command.data = { type: 'settings', attributes: { dateTime: Number(state.val) } };
 						url = 'settings';
 					} else {
 						this.log.error('Inputvalue "DATETIME" not valid. Nothing Set. (ERR_#0xx');
 						return;
 					}
 				} else if (command === 'HEADLIGHT') {
-					if (state.val === 'ALWAYS_ON' || state.val === 'ALWAYS OFF' || state.val === 'EVENING_ONLY' || state.val === 'EVENING_AND_NIGHT') {
-						data_command.data = { type: 'HeadLight' };
-						data_command.attributes = { mode: state.val };
+					// NOTE: valid value is "ALWAYS_OFF" (underscore), not "ALWAYS OFF" (space) - the previous check could
+					// therefore never match this option and always fell through to the error branch below (ERR_#0xx).
+					if (state.val === 'ALWAYS_ON' || state.val === 'ALWAYS_OFF' || state.val === 'EVENING_ONLY' || state.val === 'EVENING_AND_NIGHT') {
+						// NOTE: "type" must be "settings" and the mode goes into a nested "headlight" object, not
+						// flat as "attributes.mode" - see set_headlight_mode() in Husqvarna's own aioautomower client.
+						data_command.data = { type: 'settings', attributes: { headlight: { mode: state.val } } };
 						url = 'settings';
 					} else {
 						this.log.error('Inputvalue "HEADLIGHT" not valid. Nothing Set. (ERR_#0xx');
+						return;
+					}
+				} else if (command === 'CONFIRMERROR') {
+					// POST .../errors/confirm - confirms a non-fatal error (only works if mower.isErrorConfirmable is true).
+					// No request body required/expected.
+					url = 'errors/confirm';
+				} else if (command === 'RESETCUTTINGBLADEUSAGETIME') {
+					// POST .../statistics/resetCuttingBladeUsageTime - resets statistics.cuttingBladeUsageTime to 0.
+					// No request body required/expected.
+					url = 'statistics/resetCuttingBladeUsageTime';
+				} else if (command === 'APPLYWORKAREASETTINGS') {
+					const workAreaId = await this.getStateAsync(`${parentPath}.workAreaSettings.workAreaId`);
+					const cuttingHeight = await this.getStateAsync(`${parentPath}.workAreaSettings.cuttingHeight`);
+					const enabled = await this.getStateAsync(`${parentPath}.workAreaSettings.enabled`);
+					if (workAreaId && workAreaId.val !== null && workAreaId.val !== undefined && Number(workAreaId.val) >= 0) {
+						const attributes = {};
+						if (cuttingHeight && cuttingHeight.val !== null && cuttingHeight.val !== undefined) {
+							if (Number(cuttingHeight.val) >= 0 && Number(cuttingHeight.val) <= 100) {
+								attributes.cuttingHeight = Number(cuttingHeight.val);
+							} else {
+								this.log.error('Inputvalue "workAreaSettings.cuttingHeight" not valid. Nothing Set. (ERR_#0xx');
+								return;
+							}
+						}
+						if (enabled && enabled.val !== null && enabled.val !== undefined) {
+							attributes.enable = Boolean(enabled.val);
+						}
+						if (Object.keys(attributes).length === 0) {
+							this.log.error('Neither "workAreaSettings.cuttingHeight" nor "workAreaSettings.enabled" set. Nothing Set. (ERR_#0xx');
+							return;
+						}
+						// PATCH .../workAreas/{workAreaId}
+						data_command.data = { type: 'workArea', id: Number(workAreaId.val), attributes };
+						url = `workAreas/${Number(workAreaId.val)}`;
+						method = 'PATCH';
+					} else {
+						this.log.error('Missing/invalid "workAreaSettings.workAreaId". Nothing Set. (ERR_#0xx');
+						return;
+					}
+				} else if (command === 'APPLYSTAYOUTZONESETTINGS') {
+					const zoneId = await this.getStateAsync(`${parentPath}.stayOutZoneSettings.zoneId`);
+					const enabled = await this.getStateAsync(`${parentPath}.stayOutZoneSettings.enabled`);
+					if (zoneId && zoneId.val) {
+						// PATCH .../stayOutZones/{zoneId}
+						data_command.data = { type: 'stayOutZone', id: zoneId.val, attributes: { enable: Boolean(enabled && enabled.val) } };
+						url = `stayOutZones/${zoneId.val}`;
+						method = 'PATCH';
+					} else {
+						this.log.error('Missing "stayOutZoneSettings.zoneId". Nothing Set. (ERR_#0xx');
 						return;
 					}
 				} else if (command === 'SET') {
@@ -2434,17 +2891,18 @@ class HusqvarnaAutomower extends utils.Adapter {
 					try {
 						await this.getMowerData();
 						await this.fillObjects(this.mowerData);
+						await this.getAndFillMowerMessages();
 					} catch (error) {
 						this.log.debug(`${error} (ERR_#0xx)`);
 					}
 					return;
 				}
 
-				this.log.debug(`url: https://api.amc.husqvarna.dev/v1/mowers/${mowerId}/${url}`);
+				this.log.debug(`method: ${method}; url: https://api.amc.husqvarna.dev/v1/mowers/${mowerId}/${url}`);
 				this.log.debug(`data: ${JSON.stringify(data_command)}`);
 
 				await axios({
-					method: 'POST',
+					method: method,
 					url: `https://api.amc.husqvarna.dev/v1/mowers/${mowerId}/${url}`,
 					headers: {
 						Authorization: `Bearer ${this.access_token}`,
@@ -2452,7 +2910,8 @@ class HusqvarnaAutomower extends utils.Adapter {
 						'Authorization-Provider': 'husqvarna',
 						'Content-Type': 'application/vnd.api+json',
 					},
-					data: data_command,
+					// CONFIRMERROR / RESETCUTTINGBLADEUSAGETIME need no request body at all (data_command.data stays unset)
+					data: 'data' in data_command ? data_command : undefined,
 				})
 					.then(response => {
 						this.log.debug(`[onStateChange]: HTTP status response: ${response.status} ${response.statusText}; config: ${JSON.stringify(response.config)}; headers: ${response.headers}; data: ${JSON.stringify(response.data)}`);
