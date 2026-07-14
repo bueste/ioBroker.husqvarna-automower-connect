@@ -22,7 +22,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 	constructor(options) {
 		super({
 			...options,
-			name: 'husqvarna-automower',
+			name: 'husqvarna-automower-connect',
 		});
 		this.on('ready', this.onReady.bind(this));
 		this.on('stateChange', this.onStateChange.bind(this));

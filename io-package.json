@@ -1,8 +1,21 @@
 {
     "common": {
-        "name": "husqvarna-automower",
-        "version": "0.6.0-beta.12",
+        "name": "husqvarna-automower-connect",
+        "version": "1.0.0",
         "news": {
+            "1.0.0": {
+                "en": "First release under the new name \"husqvarna-automower-connect\" (renamed/continued fork of iobroker.husqvarna-automower, credit to original author ice987987). BREAKING: adapter instance namespace changes from husqvarna-automower.x to husqvarna-automower-connect.x, a new instance needs to be created and Application Key/Secret re-entered.\nFixed several write commands (START, STARTINWORKAREA, PARK, CUTTINGHEIGHT, DATETIME, HEADLIGHT) that were rejected by the API due to a malformed request body.\nFixed HEADLIGHT validation accepting 'ALWAYS_OFF'.\nFixed ACTIONS.CUTTINGHEIGHT being empty until the first WebSocket update after adapter start.\nFixed a memory leak in the internal capabilities cache.\nAdded ACTIONS.CONFIRMERROR, ACTIONS.RESETCUTTINGBLADEUSAGETIME, ACTIONS.workAreaSettings (set cutting height/enabled per work area) and ACTIONS.stayOutZoneSettings (enable/disable a stay-out zone).\nAdded a new .messages channel with the error/event message history.\nAdded missing workAreas fields: type, useGlobalCuttingHeight, orientation, orientationShift, currentOrientation, lastTimeAbandoned.",
+                "de": "Erste Version unter dem neuen Namen \"husqvarna-automower-connect\" (umbenannter/weitergeführter Fork von iobroker.husqvarna-automower, Dank an den ursprünglichen Autor ice987987). BREAKING: Der Instanz-Namensraum ändert sich von husqvarna-automower.x zu husqvarna-automower-connect.x, es muss eine neue Instanz angelegt und Application Key/Secret neu hinterlegt werden.\nMehrere Schreibbefehle (START, STARTINWORKAREA, PARK, CUTTINGHEIGHT, DATETIME, HEADLIGHT) behoben, die wegen eines fehlerhaften Request-Bodys von der API abgelehnt wurden.\nHEADLIGHT-Validierung für 'ALWAYS_OFF' korrigiert.\nFehler behoben, durch den ACTIONS.CUTTINGHEIGHT bis zum ersten WebSocket-Update nach Adapterstart leer war.\nMemory Leak im internen Capabilities-Cache behoben.\nACTIONS.CONFIRMERROR, ACTIONS.RESETCUTTINGBLADEUSAGETIME, ACTIONS.workAreaSettings (Schnitthöhe/enabled je Mähbereich setzen) und ACTIONS.stayOutZoneSettings (Sperrzone aktivieren/deaktivieren) hinzugefügt.\nNeuen Kanal .messages mit der Fehler-/Ereignishistorie hinzugefügt.\nFehlende workAreas-Felder ergänzt: type, useGlobalCuttingHeight, orientation, orientationShift, currentOrientation, lastTimeAbandoned.",
+                "ru": "Первый релиз под новым именем \"husqvarna-automower-connect\" (переименованный форк iobroker.husqvarna-automower, благодарность автору ice987987). ВАЖНО: пространство имён экземпляра меняется на husqvarna-automower-connect.x, нужно создать новый экземпляр адаптера.\nИсправлены неработающие команды записи (START, STARTINWORKAREA, PARK, CUTTINGHEIGHT, DATETIME, HEADLIGHT).\nИсправлена валидация HEADLIGHT для 'ALWAYS_OFF'.\nИсправлена утечка памяти во внутреннем кэше возможностей.\nДобавлены ACTIONS.CONFIRMERROR, ACTIONS.RESETCUTTINGBLADEUSAGETIME, ACTIONS.workAreaSettings и ACTIONS.stayOutZoneSettings.\nДобавлен канал .messages с историей ошибок/событий.",
+                "pt": "Primeiro lançamento sob o novo nome \"husqvarna-automower-connect\" (fork renomeado de iobroker.husqvarna-automower, crédito ao autor original ice987987). IMPORTANTE: o namespace da instância muda para husqvarna-automower-connect.x, é necessário criar uma nova instância.\nCorrigidos vários comandos de escrita (START, STARTINWORKAREA, PARK, CUTTINGHEIGHT, DATETIME, HEADLIGHT) rejeitados pela API.\nCorrigida a validação de HEADLIGHT para 'ALWAYS_OFF'.\nCorrigido vazamento de memória no cache interno de capabilities.\nAdicionados ACTIONS.CONFIRMERROR, ACTIONS.RESETCUTTINGBLADEUSAGETIME, ACTIONS.workAreaSettings e ACTIONS.stayOutZoneSettings.\nAdicionado o canal .messages com o histórico de mensagens de erro/eventos.",
+                "nl": "Eerste release onder de nieuwe naam \"husqvarna-automower-connect\" (hernoemde fork van iobroker.husqvarna-automower, dank aan oorspronkelijke auteur ice987987). BELANGRIJK: de instance-namespace wijzigt naar husqvarna-automower-connect.x, een nieuwe instance moet worden aangemaakt.\nMeerdere schrijfcommando's (START, STARTINWORKAREA, PARK, CUTTINGHEIGHT, DATETIME, HEADLIGHT) gerepareerd die door de API werden afgewezen.\nHEADLIGHT-validatie voor 'ALWAYS_OFF' gecorrigeerd.\nGeheugenlek in de interne capabilities-cache opgelost.\nACTIONS.CONFIRMERROR, ACTIONS.RESETCUTTINGBLADEUSAGETIME, ACTIONS.workAreaSettings en ACTIONS.stayOutZoneSettings toegevoegd.\nNieuw kanaal .messages met de fout-/gebeurtenisgeschiedenis toegevoegd.",
+                "fr": "Première version sous le nouveau nom \"husqvarna-automower-connect\" (fork renommé de iobroker.husqvarna-automower, merci à l'auteur original ice987987). IMPORTANT : l'espace de noms de l'instance passe à husqvarna-automower-connect.x, une nouvelle instance doit être créée.\nPlusieurs commandes d'écriture (START, STARTINWORKAREA, PARK, CUTTINGHEIGHT, DATETIME, HEADLIGHT) rejetées par l'API ont été corrigées.\nValidation de HEADLIGHT pour 'ALWAYS_OFF' corrigée.\nFuite de mémoire dans le cache interne des capabilities corrigée.\nAjout de ACTIONS.CONFIRMERROR, ACTIONS.RESETCUTTINGBLADEUSAGETIME, ACTIONS.workAreaSettings et ACTIONS.stayOutZoneSettings.\nAjout du canal .messages avec l'historique des messages d'erreur/événements.",
+                "it": "Prima release con il nuovo nome \"husqvarna-automower-connect\" (fork rinominato di iobroker.husqvarna-automower, credito all'autore originale ice987987). IMPORTANTE: lo spazio dei nomi dell'istanza cambia in husqvarna-automower-connect.x, è necessario creare una nuova istanza.\nCorretti diversi comandi di scrittura (START, STARTINWORKAREA, PARK, CUTTINGHEIGHT, DATETIME, HEADLIGHT) rifiutati dall'API.\nCorretta la validazione di HEADLIGHT per 'ALWAYS_OFF'.\nCorretta una perdita di memoria nella cache interna delle capabilities.\nAggiunti ACTIONS.CONFIRMERROR, ACTIONS.RESETCUTTINGBLADEUSAGETIME, ACTIONS.workAreaSettings e ACTIONS.stayOutZoneSettings.\nAggiunto il canale .messages con la cronologia dei messaggi di errore/eventi.",
+                "es": "Primera versión con el nuevo nombre \"husqvarna-automower-connect\" (fork renombrado de iobroker.husqvarna-automower, crédito al autor original ice987987). IMPORTANTE: el espacio de nombres de la instancia cambia a husqvarna-automower-connect.x, es necesario crear una nueva instancia.\nSe corrigieron varios comandos de escritura (START, STARTINWORKAREA, PARK, CUTTINGHEIGHT, DATETIME, HEADLIGHT) rechazados por la API.\nSe corrigió la validación de HEADLIGHT para 'ALWAYS_OFF'.\nSe corrigió una fuga de memoria en la caché interna de capabilities.\nSe añadieron ACTIONS.CONFIRMERROR, ACTIONS.RESETCUTTINGBLADEUSAGETIME, ACTIONS.workAreaSettings y ACTIONS.stayOutZoneSettings.\nSe añadió el canal .messages con el historial de mensajes de error/eventos.",
+                "pl": "Pierwsze wydanie pod nową nazwą \"husqvarna-automower-connect\" (przemianowany fork iobroker.husqvarna-automower, podziękowania dla oryginalnego autora ice987987). WAŻNE: przestrzeń nazw instancji zmienia się na husqvarna-automower-connect.x, konieczne jest utworzenie nowej instancji.\nNaprawiono kilka poleceń zapisu (START, STARTINWORKAREA, PARK, CUTTINGHEIGHT, DATETIME, HEADLIGHT) odrzucanych przez API.\nPoprawiono walidację HEADLIGHT dla 'ALWAYS_OFF'.\nNaprawiono wyciek pamięci w wewnętrznej pamięci podręcznej capabilities.\nDodano ACTIONS.CONFIRMERROR, ACTIONS.RESETCUTTINGBLADEUSAGETIME, ACTIONS.workAreaSettings i ACTIONS.stayOutZoneSettings.\nDodano kanał .messages z historią wiadomości o błędach/zdarzeniach.",
+                "zh-cn": "以新名称 \"husqvarna-automower-connect\" 发布的首个版本（iobroker.husqvarna-automower 的重命名/延续分支，感谢原作者 ice987987）。重要：实例命名空间更改为 husqvarna-automower-connect.x，需要创建新实例并重新输入 Application Key/Secret。\n修复了多个被 API 拒绝的写入命令（START、STARTINWORKAREA、PARK、CUTTINGHEIGHT、DATETIME、HEADLIGHT）。\n修复了 HEADLIGHT 对 'ALWAYS_OFF' 的校验。\n修复了内部 capabilities 缓存的内存泄漏。\n新增 ACTIONS.CONFIRMERROR、ACTIONS.RESETCUTTINGBLADEUSAGETIME、ACTIONS.workAreaSettings 和 ACTIONS.stayOutZoneSettings。\n新增 .messages 通道，包含错误/事件消息历史。",
+                "uk": "Перший реліз під новою назвою \"husqvarna-automower-connect\" (перейменований форк iobroker.husqvarna-automower, подяка оригінальному автору ice987987). ВАЖЛИВО: простір імен екземпляра змінюється на husqvarna-automower-connect.x, потрібно створити новий екземпляр.\nВиправлено кілька команд запису (START, STARTINWORKAREA, PARK, CUTTINGHEIGHT, DATETIME, HEADLIGHT), які відхилялися API.\nВиправлено валідацію HEADLIGHT для 'ALWAYS_OFF'.\nВиправлено витік пам'яті у внутрішньому кеші capabilities.\nДодано ACTIONS.CONFIRMERROR, ACTIONS.RESETCUTTINGBLADEUSAGETIME, ACTIONS.workAreaSettings та ACTIONS.stayOutZoneSettings.\nДодано канал .messages з історією повідомлень про помилки/події."
+            },
             "0.3.0": {
                 "en": "improved logging\nupdate dependencies\nupdate of `common.states` of `.mower.errorCode`\nadding statistics values from the Automower Connect API `.statistics.cuttingBladeUsageTime`, `.statistics.numberOfChargingCycles`, `.statistics.numberOfCollisions`, `.statistics.totalChargingTime`, `.statistics.totalCuttingTime`, `.statistics.totalRunningTime` and `.statistics.totalSearchingTime`",
                 "de": "verbesserte protokollierung\naktualisierung der abhängigkeiten\naktualisierung von Common. Mower.errorCode\nhinzufügen von Statistikwerten aus der Automower Connect API Statistik.cuttingBladeUsageTime, statistics.numberOfChargingCycles, statistics.numberOfCollisions, statistics.totalChargingTime, statistics.totalCuttingTime, statistics.totalRunningTime und statistics.totalSearchingTime",
@@ -96,38 +109,41 @@
             }
         },
         "titleLang": {
-            "en": "husqvarna-automower",
-            "de": "husqvarna-automower",
-            "ru": "Husqvarna-автоматическая газонокосилка",
-            "pt": "husqvarna-automower",
-            "nl": "husqvarna-automower",
-            "fr": "tondeuse automatique husqvarna",
-            "it": "husqvarna-tosaerba",
-            "es": "husqvarna-automower",
-            "pl": "husqvarna-automower",
-            "zh-cn": "husqvarna-自动割草机",
-            "uk": "автокоса Husqvarna"
+            "en": "husqvarna-automower-connect",
+            "de": "husqvarna-automower-connect",
+            "ru": "Husqvarna-автоматическая газонокосилка (Connect)",
+            "pt": "husqvarna-automower-connect",
+            "nl": "husqvarna-automower-connect",
+            "fr": "tondeuse automatique husqvarna (connect)",
+            "it": "husqvarna-tosaerba (connect)",
+            "es": "husqvarna-automower-connect",
+            "pl": "husqvarna-automower-connect",
+            "zh-cn": "husqvarna-自动割草机-connect",
+            "uk": "автокоса Husqvarna (Connect)"
         },
         "desc": {
-            "en": "This adapter uses the Husqvarna API to request data for your Husqvarna Automower via the connect module.",
-            "de": "Dieser Adapter nutzt die Husqvarna-API, um Daten für Ihren Husqvarna Automower über das Verbindungsmodul anzufordern.",
-            "ru": "Этот адаптер использует API Husqvarna для запроса данных для вашей газонокосилки Husqvarna через модуль подключения.",
-            "pt": "Este adaptador utiliza a API Husqvarna para solicitar dados para o seu Husqvarna Automower através do módulo de ligação.",
-            "nl": "Deze adapter maakt gebruik van de Husqvarna API om via de connect-module gegevens op te vragen voor uw Husqvarna Automower.",
-            "fr": "Cet adaptateur utilise l'API Husqvarna pour demander des données pour votre Husqvarna Automower via le module de connexion.",
-            "it": "Questo adattatore utilizza l'API Husqvarna per richiedere dati per il tuo Husqvarna Automower tramite il modulo di connessione.",
-            "es": "Este adaptador utiliza la API de Husqvarna para solicitar datos para su Husqvarna Automower a través del módulo de conexión.",
-            "pl": "Ten adapter wykorzystuje interfejs API Husqvarna do żądania danych dla kosiarki Husqvarna Automower za pośrednictwem modułu połączeniowego.",
-            "uk": "Цей адаптер використовує API Husqvarna для запиту даних для вашої косарки Husqvarna Automower через модуль підключення.",
-            "zh-cn": "该适配器使用 Husqvarna API 通过连接模块请求 Husqvarna 自动割草机的数据。"
+            "en": "This adapter uses the official Husqvarna Automower Connect API to request and control data for your Husqvarna Automower via the connect module. Complete, actively maintained fork of iobroker.husqvarna-automower with full API coverage (work areas, stay-out zones, error confirmation, message/error history) and fixes for several write commands that were rejected by the API.",
+            "de": "Dieser Adapter nutzt die offizielle Husqvarna Automower Connect API, um Daten für Ihren Husqvarna Automower über das Verbindungsmodul anzufordern und zu steuern. Vollständiger, aktiv gepflegter Fork von iobroker.husqvarna-automower mit vollständiger API-Abdeckung (Mähbereiche, Sperrzonen, Fehlerbestätigung, Fehler-/Ereignishistorie) und Behebung mehrerer von der API abgelehnter Schreibbefehle.",
+            "ru": "Этот адаптер использует официальный Automower Connect API Husqvarna для запроса и управления данными вашей газонокосилки через модуль подключения. Полный, активно поддерживаемый форк iobroker.husqvarna-automower с полной поддержкой API.",
+            "pt": "Este adaptador utiliza a API oficial Automower Connect da Husqvarna para solicitar e controlar dados do seu Husqvarna Automower através do módulo de ligação. Fork completo e ativamente mantido de iobroker.husqvarna-automower com cobertura completa da API.",
+            "nl": "Deze adapter maakt gebruik van de officiële Husqvarna Automower Connect API om via de connect-module gegevens op te vragen en te besturen voor uw Husqvarna Automower. Volledige, actief onderhouden fork van iobroker.husqvarna-automower met volledige API-dekking.",
+            "fr": "Cet adaptateur utilise l'API officielle Automower Connect de Husqvarna pour demander et contrôler les données de votre Husqvarna Automower via le module de connexion. Fork complet et activement maintenu de iobroker.husqvarna-automower avec une couverture complète de l'API.",
+            "it": "Questo adattatore utilizza l'API ufficiale Automower Connect di Husqvarna per richiedere e controllare i dati del tuo Husqvarna Automower tramite il modulo di connessione. Fork completo e attivamente mantenuto di iobroker.husqvarna-automower con copertura completa dell'API.",
+            "es": "Este adaptador utiliza la API oficial Automower Connect de Husqvarna para solicitar y controlar datos de su Husqvarna Automower a través del módulo de conexión. Fork completo y activamente mantenido de iobroker.husqvarna-automower con cobertura completa de la API.",
+            "pl": "Ten adapter wykorzystuje oficjalny interfejs Automower Connect API firmy Husqvarna do żądania i sterowania danymi kosiarki Husqvarna Automower za pośrednictwem modułu połączeniowego. Kompletny, aktywnie rozwijany fork iobroker.husqvarna-automower z pełnym pokryciem API.",
+            "uk": "Цей адаптер використовує офіційний Automower Connect API Husqvarna для запиту та керування даними вашої косарки через модуль підключення. Повний, активно підтримуваний форк iobroker.husqvarna-automower з повною підтримкою API.",
+            "zh-cn": "该适配器使用 Husqvarna 官方 Automower Connect API，通过连接模块请求并控制您的 Husqvarna 自动割草机。这是 iobroker.husqvarna-automower 的完整、持续维护的分支，具备完整的 API 覆盖率。"
         },
         "authors": [
-            "ice987987 <mathias.frei1@gmail.com>"
+            "bueste <stefan.buehler46@gmail.com>",
+            "ice987987 <mathias.frei1@gmail.com> (original author of iobroker.husqvarna-automower, which this adapter is forked from)"
         ],
         "keywords": [
+            "husqvarna-automower-connect",
             "husqvarna-automower",
             "husqvarna",
             "automower",
+            "automower-connect",
             "lawnmower",
             "mower"
         ],
@@ -136,10 +152,10 @@
             "license": "MIT"
         },
         "platform": "Javascript/Node.js",
-        "icon": "husqvarna-automower.svg",
+        "icon": "husqvarna-automower-connect.svg",
         "enabled": true,
-        "extIcon": "https://raw.githubusercontent.com/ice987987/ioBroker.husqvarna-automower/main/admin/husqvarna-automower.svg",
-        "readme": "https://github.com/ice987987/ioBroker.husqvarna-automower/blob/main/README.md",
+        "extIcon": "https://raw.githubusercontent.com/bueste/ioBroker.husqvarna-automower-connect/main/admin/husqvarna-automower-connect.svg",
+        "readme": "https://github.com/bueste/ioBroker.husqvarna-automower-connect/blob/main/README.md",
         "loglevel": "info",
         "tier": 3,
         "mode": "daemon",

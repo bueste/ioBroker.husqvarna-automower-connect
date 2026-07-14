@@ -1,24 +1,32 @@
 {
-  "name": "iobroker.husqvarna-automower",
-  "version": "0.6.0-beta.12",
-  "description": "This adapter for uses the Husqvarna API to request data for your Husqvarna Automower via the connect module.",
+  "name": "iobroker.husqvarna-automower-connect",
+  "version": "1.0.0",
+  "description": "This adapter uses the official Husqvarna Automower Connect API to request and control data for your Husqvarna Automower via the connect module. Complete, actively maintained fork of iobroker.husqvarna-automower with full API coverage (work areas, stay-out zones, error confirmation, message history) and fixes for several broken write commands.",
   "author": {
-    "name": "ice987987",
-    "email": "mathias.frei1@gmail.com"
+    "name": "bueste",
+    "email": "stefan.buehler46@gmail.com"
   },
-  "homepage": "https://github.com/ice987987/ioBroker.husqvarna-automower",
+  "contributors": [
+    {
+      "name": "ice987987",
+      "email": "mathias.frei1@gmail.com"
+    }
+  ],
+  "homepage": "https://github.com/bueste/ioBroker.husqvarna-automower-connect",
   "license": "MIT",
   "keywords": [
     "ioBroker",
+    "husqvarna-automower-connect",
     "husqvarna-automower",
     "husqvarna",
     "automower",
+    "automower-connect",
     "lawnmower",
     "mower"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/ice987987/ioBroker.husqvarna-automower.git"
+    "url": "https://github.com/bueste/ioBroker.husqvarna-automower-connect.git"
   },
   "engines": {
     "node": ">=18"
@@ -69,7 +77,7 @@
     "translate": "translate-adapter"
   },
   "bugs": {
-    "url": "https://github.com/ice987987/ioBroker.husqvarna-automower/issues"
+    "url": "https://github.com/bueste/ioBroker.husqvarna-automower-connect/issues"
   },
   "readmeFilename": "README.md"
 }
