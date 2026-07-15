@@ -375,6 +375,10 @@ function round(digit, digits) {
 
 <!-- ### **WORK IN PROGRESS** -->
 
+
+### **WORK IN PROGRESS**
+- (ioBroker-Bot) Adapter requires admin >= 7.8.23 now.
+
 ### 1.0.0 (14.07.2026)
 
 -   (bueste) Renamed/continued as `ioBroker.husqvarna-automower-connect`, a complete, actively maintained fork of `ioBroker.husqvarna-automower`. Full credit to ice987987 for the original adapter. BREAKING: adapter instance namespace changes from `husqvarna-automower.x` to `husqvarna-automower-connect.x` - create a new instance and re-enter Application Key/Secret.
