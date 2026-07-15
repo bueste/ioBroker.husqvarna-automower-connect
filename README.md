@@ -468,6 +468,8 @@ function round(digit, digits) {
 -   (ice987987) update links to husqvarna homepage due to their updated homepage
 -   (ice987987) improved bug-report form
 
+[Older changelogs can be found there](CHANGELOG_OLD.md)
+
 ## License
 
 MIT License
