@@ -8,8 +8,13 @@ updates:
           timezone: Europe/Zurich
       open-pull-requests-limit: 5
       assignees:
-          - ice987987
+          - bueste
       versioning-strategy: increase
+      cooldown:
+          default: 7
+      ignore:
+          - dependency-name: '@types/node'
+            update-types: ['version-update:semver-major']
 
     - package-ecosystem: github-actions
       directory: '/'
@@ -19,4 +24,4 @@ updates:
           timezone: Europe/Zurich
       open-pull-requests-limit: 5
       assignees:
-          - ice987987
+          - bueste
