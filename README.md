@@ -375,6 +375,14 @@ function round(digit, digits) {
 
 <!-- ### **WORK IN PROGRESS** -->
 
+### 1.0.1 (16.07.2026)
+
+-   (bueste) Cleanup release addressing the ioBroker adapter store checker findings, no functional/API changes.
+-   (bueste) Removed devDependencies already bundled by `@iobroker/testing` (`chai`, `mocha`, `sinon` and their `@types/*`)
+-   (bueste) Updated `@iobroker/testing`, `admin` and `js-controller` minimum versions; fixed a peer-dependency conflict (`globals`)
+-   (bueste) Migrated to `@tsconfig/node22` and the current standard Dependabot auto-merge workflow (`automerge-dependabot.yml`)
+-   (bueste) Fixed copyright line formatting in README.md/LICENSE (Markdown line-break spacing); synced README installation requirements with io-package.json
+
 ### 1.0.0 (14.07.2026)
 
 -   (bueste) Renamed/continued as `ioBroker.husqvarna-automower-connect`, a complete, actively maintained fork of `ioBroker.husqvarna-automower`. Full credit to ice987987 for the original adapter. BREAKING: adapter instance namespace changes from `husqvarna-automower.x` to `husqvarna-automower-connect.x` - create a new instance and re-enter Application Key/Secret.
