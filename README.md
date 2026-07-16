@@ -26,8 +26,8 @@ All product and company names or logos are trademarks™ or registered® tradema
 ## Installation requirements
 
 -   node.js >= v22 is required
--   ioBroker.js-controller >=5.0.19 is required
--   ioBroker.admin >= v7.4.10 is required
+-   ioBroker.js-controller >=6.0.11 is required
+-   ioBroker.admin >= v7.8.23 is required
 -   This adapter uses the Husqvarna Automower Connect API to request data (via WebSocket) and send commands (via REST API) for your Husqvarna lawn mower.
 
 Please create an account and generate your personal `Application key` and `Application secret` by following [these instructions](https://developer.husqvarnagroup.cloud/docs/get-started) via [https://developer.husqvarnagroup.cloud](https://developer.husqvarnagroup.cloud/). _(`Redirect URLs` could be `http://localhost:8080`)_
