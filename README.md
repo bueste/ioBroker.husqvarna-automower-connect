@@ -375,6 +375,10 @@ function round(digit, digits) {
 
 <!-- ### **WORK IN PROGRESS** -->
 
+### 1.0.2 (16.07.2026)
+
+-   (bueste) Enabled automated npm releases via GitHub Actions using npm Trusted Publishing (OIDC) - no more manual publishing, and this and all future tagged releases are automatically signed with npm provenance. No functional/API changes.
+
 ### 1.0.1 (16.07.2026)
 
 -   (bueste) Cleanup release addressing the ioBroker adapter store checker findings, no functional/API changes.
