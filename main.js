@@ -181,7 +181,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 	 * copy-pasted context label pointing at the wrong function name, see git history).
 	 *
 	 * @param {string} context - short label identifying the calling function, e.g. 'getMowerData'
-	 * @param {any} error - the error caught from a failed axios request
+	 * @param {unknown} error - the error caught from a failed axios request
 	 */
 	logAxiosError(context, error) {
 		if (error.response) {
