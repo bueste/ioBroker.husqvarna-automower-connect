@@ -472,7 +472,7 @@ function round(digit, digits) {
 
 MIT License
 
-Copyright (c) 2025 ice987987 <mathias.frei1@gmail.com>
+Copyright (c) 2025 ice987987 <mathias.frei1@gmail.com>  
 Copyright (c) 2026 Stefan Buehler <stefan.buehler46@gmail.com> (modifications and additions in this fork)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
