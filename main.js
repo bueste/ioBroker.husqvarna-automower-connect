@@ -316,7 +316,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 						common: {
 							name: 'Device type',
 							type: 'string',
-							role: 'info.type',
+							role: 'text',
 							read: true,
 							write: false,
 						},
@@ -327,7 +327,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 						common: {
 							name: 'Device ID',
 							type: 'string',
-							role: 'info.id',
+							role: 'text',
 							read: true,
 							write: false,
 						},
@@ -361,7 +361,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 						common: {
 							name: 'The serial number for the Automower',
 							type: 'number',
-							role: 'info.serialnumber',
+							role: 'info.serial',
 							read: true,
 							write: false,
 						},
@@ -1028,7 +1028,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 						type: 'state',
 						common: {
 							name: 'Full list of messages as returned by the API (JSON array, latest first, max. ~1000 entries).',
-							type: 'array',
+							type: 'string',
 							role: 'json',
 							read: true,
 							write: false,
@@ -1573,7 +1573,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 							common: {
 								name: 'Information about headlights. Not all Automower models supports headlight and not all enums are available for all models.',
 								type: 'string',
-								role: 'value',
+								role: 'state',
 								states: {
 									ALWAYS_ON: 'Always on.',
 									ALWAYS_OFF: 'Always off.',
@@ -1669,7 +1669,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 							common: {
 								name: 'Start time expressed in minutes after midnight',
 								type: 'number',
-								role: 'value',
+								role: 'level',
 								min: 0,
 								max: 1439,
 								unit: 'min',
@@ -1684,7 +1684,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 							common: {
 								name: 'Duration time expressed in minutes',
 								type: 'number',
-								role: 'value',
+								role: 'level',
 								min: 1,
 								max: 1440,
 								unit: 'min',
@@ -1699,7 +1699,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 							common: {
 								name: 'Enabled on Mondays',
 								type: 'boolean',
-								role: 'value',
+								role: 'switch',
 								def: false,
 								read: true,
 								write: true,
@@ -1711,7 +1711,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 							common: {
 								name: 'Enabled on Tuesdays',
 								type: 'boolean',
-								role: 'value',
+								role: 'switch',
 								def: false,
 								read: true,
 								write: true,
@@ -1723,7 +1723,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 							common: {
 								name: 'Enabled on Wednesdays',
 								type: 'boolean',
-								role: 'value',
+								role: 'switch',
 								def: false,
 								read: true,
 								write: true,
@@ -1735,7 +1735,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 							common: {
 								name: 'Enabled on Thursdays',
 								type: 'boolean',
-								role: 'value',
+								role: 'switch',
 								def: false,
 								read: true,
 								write: true,
@@ -1747,7 +1747,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 							common: {
 								name: 'Enabled on Fridays',
 								type: 'boolean',
-								role: 'value',
+								role: 'switch',
 								def: false,
 								read: true,
 								write: true,
@@ -1759,7 +1759,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 							common: {
 								name: 'Enabled on Saturdays',
 								type: 'boolean',
-								role: 'value',
+								role: 'switch',
 								def: false,
 								read: true,
 								write: true,
@@ -1771,7 +1771,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 							common: {
 								name: 'Enabled on Sundays',
 								type: 'boolean',
-								role: 'value',
+								role: 'switch',
 								def: false,
 								read: true,
 								write: true,
@@ -2289,7 +2289,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 									common: {
 										name: 'Start time expressed in minutes after midnight',
 										type: 'number',
-										role: 'value',
+										role: 'level',
 										min: 0,
 										max: 1439,
 										unit: 'min',
@@ -2304,7 +2304,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 									common: {
 										name: 'Duration time expressed in minutes',
 										type: 'number',
-										role: 'value',
+										role: 'level',
 										min: 1,
 										max: 1440,
 										unit: 'min',
@@ -2319,7 +2319,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 									common: {
 										name: 'Enabled on Mondays',
 										type: 'boolean',
-										role: 'value',
+										role: 'switch',
 										def: false,
 										read: true,
 										write: true,
@@ -2331,7 +2331,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 									common: {
 										name: 'Enabled on Tuesdays',
 										type: 'boolean',
-										role: 'value',
+										role: 'switch',
 										def: false,
 										read: true,
 										write: true,
@@ -2343,7 +2343,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 									common: {
 										name: 'Enabled on Wednesdays',
 										type: 'boolean',
-										role: 'value',
+										role: 'switch',
 										def: false,
 										read: true,
 										write: true,
@@ -2355,7 +2355,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 									common: {
 										name: 'Enabled on Thursdays',
 										type: 'boolean',
-										role: 'value',
+										role: 'switch',
 										def: false,
 										read: true,
 										write: true,
@@ -2367,7 +2367,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 									common: {
 										name: 'Enabled on Fridays',
 										type: 'boolean',
-										role: 'value',
+										role: 'switch',
 										def: false,
 										read: true,
 										write: true,
@@ -2379,7 +2379,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 									common: {
 										name: 'Enabled on Saturdays',
 										type: 'boolean',
-										role: 'value',
+										role: 'switch',
 										def: false,
 										read: true,
 										write: true,
@@ -2391,7 +2391,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 									common: {
 										name: 'Enabled on Sundays',
 										type: 'boolean',
-										role: 'value',
+										role: 'switch',
 										def: false,
 										read: true,
 										write: true,
