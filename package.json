@@ -1,6 +1,6 @@
 {
   "name": "iobroker.husqvarna-automower-connect",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "This adapter uses the official Husqvarna Automower Connect API to request and control data for your Husqvarna Automower via the connect module. Complete, actively maintained fork of iobroker.husqvarna-automower with full API coverage (work areas, stay-out zones, error confirmation, message history) and fixes for several broken write commands.",
   "author": {
     "name": "bueste",

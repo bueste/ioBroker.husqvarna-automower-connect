@@ -375,6 +375,10 @@ function round(digit, digits) {
 
 <!-- ### **WORK IN PROGRESS** -->
 
+### 1.0.3 (17.07.2026)
+
+-   (bueste) Corrected several object role/type mismatches found by the ioBroker store submission's object structure check (ACTIONS.HEADLIGHT, ACTIONS.schedule fields, messages.messages, system.id/type/serialNumber). No functional/API changes - purely metadata (common.role/common.type) corrections.
+
 ### 1.0.2 (16.07.2026)
 
 -   (bueste) Enabled automated npm releases via GitHub Actions using npm Trusted Publishing (OIDC) - no more manual publishing, and this and all future tagged releases are automatically signed with npm provenance. No functional/API changes.
