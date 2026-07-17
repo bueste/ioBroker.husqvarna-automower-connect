@@ -51,9 +51,65 @@ class HusqvarnaAutomower extends utils.Adapter {
 	/**
 	 * Is called when databases are connected and adapter received configuration.
 	 */
+	// One-time (well, cheap-and-idempotent-every-startup) fix for a set of known role/type mistakes
+	// present in objects created by versions before 1.0.3 (see CHANGELOG). setObjectNotExistsAsync()
+	// never touches an object that already exists, so simply updating the adapter does not correct
+	// objects an already-running installation had already created - this actively force-corrects them
+	// via extendObjectAsync() instead. Only touches an object if its CURRENT role still matches the
+	// known-bad value, so it never clobbers anything a user might have customized in the meantime.
+	async migrateObjectRoles() {
+		try {
+			const objects = await this.getAdapterObjectsAsync();
+			const fixes = [
+				{ suffix: /\.ACTIONS\.HEADLIGHT$/, badRole: 'value', common: { role: 'state' } },
+				{ suffix: /\.ACTIONS\.schedule\.\d+\.(start|duration)$/, badRole: 'value', common: { role: 'level' } },
+				{ suffix: /\.ACTIONS\.schedule\.\d+\.(monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/, badRole: 'value', common: { role: 'switch' } },
+				{ suffix: /\.messages\.messages$/, badType: 'array', common: { type: 'string' } },
+				{ suffix: /\.system\.id$/, badRole: 'info.id', common: { role: 'text' } },
+				{ suffix: /\.system\.type$/, badRole: 'info.type', common: { role: 'text' } },
+				{ suffix: /\.system\.serialNumber$/, badRole: 'info.serialnumber', common: { role: 'info.serial' } },
+			];
+
+			let fixedCount = 0;
+			for (const id of Object.keys(objects)) {
+				const obj = objects[id];
+				if (!obj || obj.type !== 'state' || !obj.common) {
+					continue;
+				}
+				for (const fix of fixes) {
+					if (!fix.suffix.test(id)) {
+						continue;
+					}
+					const roleMatches = fix.badRole === undefined || obj.common.role === fix.badRole;
+					const typeMatches = fix.badType === undefined || obj.common.type === fix.badType;
+					if (roleMatches && typeMatches) {
+						await this.extendObjectAsync(id, { common: fix.common });
+						fixedCount++;
+					}
+					break; // each id matches at most one fix pattern
+				}
+			}
+			if (fixedCount > 0) {
+				this.log.info(`Migration: corrected role/type on ${fixedCount} existing object(s) created by a version before 1.0.3.`);
+			}
+		} catch (e) {
+			// Never let a migration failure block adapter startup - worst case the objects stay
+			// as they were, which is the same situation as before this migration existed.
+			this.log.warn(`Migration of object roles/types failed (non-fatal, adapter will continue starting): ${e}`);
+		}
+	}
+
 	async onReady() {
 		// Initialize your adapter here
 		this.log.info('starting adapter "husqvarna-automower"...');
+
+		// One-time migration: setObjectNotExistsAsync() (used throughout this adapter to create
+		// states) only creates an object if it does NOT already exist yet - it never updates an
+		// already-existing object. Installations that were running before 1.0.3 therefore kept the
+		// incorrect roles/types fixed in that release (see CHANGELOG) forever, even after updating,
+		// since the objects already existed. This forces those specific, known-bad objects to the
+		// corrected values on every startup (extendObjectAsync is cheap/idempotent once corrected).
+		await this.migrateObjectRoles();
 
 		// Reset the connection indicator during startup
 		this.setState('info.connection', false, true);

@@ -375,6 +375,10 @@ function round(digit, digits) {
 
 <!-- ### **WORK IN PROGRESS** -->
 
+### 1.0.4 (17.07.2026)
+
+-   (bueste) FIX: 1.0.3 corrected several wrong object roles/types (ACTIONS.HEADLIGHT, ACTIONS.schedule fields, messages.messages, system.id/type/serialNumber), but `setObjectNotExistsAsync()` never touches an object that already exists - so installations updating from before 1.0.3 kept the old, incorrect objects forever. Added a one-time startup migration that force-corrects exactly those known objects via `extendObjectAsync()`, without touching anything else.
+
 ### 1.0.3 (17.07.2026)
 
 -   (bueste) Corrected several object role/type mismatches found by the ioBroker store submission's object structure check (ACTIONS.HEADLIGHT, ACTIONS.schedule fields, messages.messages, system.id/type/serialNumber). No functional/API changes - purely metadata (common.role/common.type) corrections.
