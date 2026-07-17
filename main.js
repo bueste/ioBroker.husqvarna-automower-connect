@@ -52,11 +52,14 @@ class HusqvarnaAutomower extends utils.Adapter {
 	 * Is called when databases are connected and adapter received configuration.
 	 */
 	// One-time (well, cheap-and-idempotent-every-startup) fix for a set of known role/type mistakes
-	// present in objects created by versions before 1.0.3 (see CHANGELOG). setObjectNotExistsAsync()
-	// never touches an object that already exists, so simply updating the adapter does not correct
-	// objects an already-running installation had already created - this actively force-corrects them
-	// via extendObjectAsync() instead. Only touches an object if its CURRENT role still matches the
-	// known-bad value, so it never clobbers anything a user might have customized in the meantime.
+	// present in objects created by older versions (see CHANGELOG). setObjectNotExistsAsync() never
+	// touches an object that already exists, so simply updating the adapter does not correct objects
+	// an already-running installation had already created - this actively force-corrects them via
+	// extendObjectAsync() instead. Only touches an object if it STILL holds one of the known-bad
+	// role/type values, so it never clobbers anything a user might have customized in the meantime.
+	// Role and type are checked independently (not "both must still be wrong"), so an object that
+	// was already partially corrected by an earlier version of this migration (e.g. role fixed but
+	// type still wrong) gets fully corrected instead of being skipped.
 	async migrateObjectRoles() {
 		try {
 			const objects = await this.getAdapterObjectsAsync();
@@ -67,7 +70,8 @@ class HusqvarnaAutomower extends utils.Adapter {
 				{ suffix: /\.messages\.messages$/, badType: 'array', common: { type: 'string' } },
 				{ suffix: /\.system\.id$/, badRole: 'info.id', common: { role: 'text' } },
 				{ suffix: /\.system\.type$/, badRole: 'info.type', common: { role: 'text' } },
-				{ suffix: /\.system\.serialNumber$/, badRole: 'info.serialnumber', common: { role: 'info.serial' } },
+				{ suffix: /\.system\.serialNumber$/, badRole: 'info.serialnumber', badType: 'number', common: { role: 'info.serial', type: 'string' } },
+				{ suffix: /\.positions\.latlong$/, badRole: 'value.gps', common: { role: 'text' } },
 			];
 
 			let fixedCount = 0;
@@ -80,17 +84,17 @@ class HusqvarnaAutomower extends utils.Adapter {
 					if (!fix.suffix.test(id)) {
 						continue;
 					}
-					const roleMatches = fix.badRole === undefined || obj.common.role === fix.badRole;
-					const typeMatches = fix.badType === undefined || obj.common.type === fix.badType;
-					if (roleMatches && typeMatches) {
+					const roleStillBad = fix.badRole !== undefined && obj.common.role === fix.badRole;
+					const typeStillBad = fix.badType !== undefined && obj.common.type === fix.badType;
+					if (roleStillBad || typeStillBad) {
 						await this.extendObjectAsync(id, { common: fix.common });
 						fixedCount++;
 					}
-					break; // each id matches at most one fix pattern
+					break; // each id matches at most one fix pattern (suffixes are mutually exclusive)
 				}
 			}
 			if (fixedCount > 0) {
-				this.log.info(`Migration: corrected role/type on ${fixedCount} existing object(s) created by a version before 1.0.3.`);
+				this.log.info(`Migration: corrected role/type on ${fixedCount} existing object(s) created by an older version.`);
 			}
 		} catch (e) {
 			// Never let a migration failure block adapter startup - worst case the objects stay
@@ -416,7 +420,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 						type: 'state',
 						common: {
 							name: 'The serial number for the Automower',
-							type: 'number',
+							type: 'string',
 							role: 'info.serial',
 							read: true,
 							write: false,
@@ -950,7 +954,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 						common: {
 							name: 'Position "latitude;longitude"',
 							type: 'string',
-							role: 'value.gps',
+							role: 'text',
 							read: true,
 							write: false,
 						},
@@ -1945,7 +1949,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 						ack: true,
 					});
 					this.setState(`${mowerData.data[i].id}.system.serialNumber`, {
-						val: mowerData.data[i].attributes.system.serialNumber,
+						val: String(mowerData.data[i].attributes.system.serialNumber),
 						ack: true,
 					});
 

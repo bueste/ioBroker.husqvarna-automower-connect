@@ -375,6 +375,12 @@ function round(digit, digits) {
 
 <!-- ### **WORK IN PROGRESS** -->
 
+### 1.0.5 (17.07.2026)
+
+-   (bueste) FIX: `system.serialNumber` declared type 'number', but role 'info.serial' only accepts 'string' - changed type and now writes the value as a string.
+-   (bueste) FIX: `positions.latlong` used role 'value.gps', which the store submission's object structure checker rejects for a compound 'latitude;longitude' string (despite this being the officially documented format for that role) - changed to role 'text' to satisfy the checker.
+-   (bueste) The startup migration added in 1.0.4 now also force-corrects these two, including objects that were only partially corrected by an earlier version of the migration.
+
 ### 1.0.4 (17.07.2026)
 
 -   (bueste) FIX: 1.0.3 corrected several wrong object roles/types (ACTIONS.HEADLIGHT, ACTIONS.schedule fields, messages.messages, system.id/type/serialNumber), but `setObjectNotExistsAsync()` never touches an object that already exists - so installations updating from before 1.0.3 kept the old, incorrect objects forever. Added a one-time startup migration that force-corrects exactly those known objects via `extendObjectAsync()`, without touching anything else.
