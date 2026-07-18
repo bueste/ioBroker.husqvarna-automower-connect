@@ -12,7 +12,7 @@
 [![NPM](https://nodei.co/npm/iobroker.husqvarna-automower-connect.svg?downloads=true)](https://nodei.co/npm/iobroker.husqvarna-automower-connect/)
 
 ![Test and Release](https://github.com/bueste/ioBroker.husqvarna-automower-connect/workflows/Test%20and%20Release/badge.svg)
-[![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/donate?hosted_button_id=8QZKPB9JEVWKY)
+[![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/ncp/payment/TT6MTBLXX9L9U)
 
 ## husqvarna-automower-connect adapter for ioBroker
 
