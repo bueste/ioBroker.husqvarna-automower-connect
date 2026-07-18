@@ -376,6 +376,10 @@ function round(digit, digits) {
 
 <!-- ### **WORK IN PROGRESS** -->
 
+### 1.0.6 (17.07.2026)
+
+-   (bueste) Documentation only: fixed the PayPal donate link, which previously used the wrong URL format and did not work.
+
 ### 1.0.5 (17.07.2026)
 
 -   (bueste) FIX: `system.serialNumber` declared type 'number', but role 'info.serial' only accepts 'string' - changed type and now writes the value as a string.
