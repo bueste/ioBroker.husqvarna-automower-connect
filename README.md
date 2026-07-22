@@ -4,7 +4,7 @@
 
 [![NPM version](https://img.shields.io/npm/v/iobroker.husqvarna-automower-connect.svg)](https://www.npmjs.com/package/iobroker.husqvarna-automower-connect)
 [![Downloads](https://img.shields.io/npm/dm/iobroker.husqvarna-automower-connect.svg)](https://www.npmjs.com/package/iobroker.husqvarna-automower-connect)
-![Number of Installations](https://iobroker.live/badges/husqvarna-automower-connect-installed.svg)
+<!-- ![Number of Installations](https://iobroker.live/badges/husqvarna-automower-connect-installed.svg) -->
 ![Current version in stable repository](https://img.shields.io/badge/stable-not%20published-%23264777)
 
 <!-- ![Current version in stable repository](https://iobroker.live/badges/husqvarna-automower-connect-stable.svg) -->
