@@ -13,6 +13,10 @@
     }
   ],
   "homepage": "https://github.com/bueste/ioBroker.husqvarna-automower-connect",
+  "funding": {
+    "type": "buymeacoffee",
+    "url": "https://buymeacoffee.com/stefanbuehler"
+  },
   "license": "MIT",
   "keywords": [
     "ioBroker",

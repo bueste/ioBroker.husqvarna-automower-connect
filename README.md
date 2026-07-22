@@ -13,6 +13,7 @@
 
 ![Test and Release](https://github.com/bueste/ioBroker.husqvarna-automower-connect/workflows/Test%20and%20Release/badge.svg)
 [![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/ncp/payment/TT6MTBLXX9L9U)
+[![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/stefanbuehler)
 
 ## husqvarna-automower-connect adapter for ioBroker
 
