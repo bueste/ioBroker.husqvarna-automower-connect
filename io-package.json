@@ -1,8 +1,21 @@
 {
     "common": {
         "name": "husqvarna-automower-connect",
-        "version": "1.0.7",
+        "version": "1.0.8",
         "news": {
+            "1.0.8": {
+                "en": "Documentation only: removed the e-mail address and corrected the name spelling in the README license section (the LICENSE file itself was already correct); commented out the number-of-installations badge, which cannot resolve until the adapter is available in the official ioBroker repository. No functional changes.",
+                "de": "Nur Dokumentation: E-Mail-Adresse entfernt und Namensschreibweise im Lizenzabschnitt der README korrigiert (die LICENSE-Datei selbst war bereits korrekt); das Badge mit der Installationszahl auskommentiert, da es erst funktioniert, wenn der Adapter im offiziellen ioBroker-Repository verfügbar ist. Keine funktionalen Änderungen.",
+                "ru": "Только документация: из раздела лицензии в README удалён адрес электронной почты и исправлено написание имени (сам файл LICENSE уже был корректным); значок с числом установок закомментирован, так как он не работает, пока адаптер не появится в официальном репозитории ioBroker. Без функциональных изменений.",
+                "pt": "Apenas documentação: removido o endereço de e-mail e corrigida a grafia do nome na secção de licença do README (o ficheiro LICENSE já estava correto); o badge com o número de instalações foi comentado, pois só funciona quando o adaptador estiver disponível no repositório oficial do ioBroker. Sem alterações funcionais.",
+                "nl": "Alleen documentatie: e-mailadres verwijderd en naamspelling gecorrigeerd in het licentiegedeelte van de README (het LICENSE-bestand zelf was al correct); de badge met het aantal installaties is uitgecommentarieerd, omdat deze pas werkt zodra de adapter in de officiële ioBroker-repository beschikbaar is. Geen functionele wijzigingen.",
+                "fr": "Documentation uniquement : adresse e-mail supprimée et orthographe du nom corrigée dans la section licence du README (le fichier LICENSE lui-même était déjà correct) ; le badge du nombre d'installations a été mis en commentaire, car il ne fonctionne que lorsque l'adaptateur est disponible dans le dépôt officiel ioBroker. Aucune modification fonctionnelle.",
+                "it": "Solo documentazione: rimosso l'indirizzo e-mail e corretta la grafia del nome nella sezione licenza del README (il file LICENSE era già corretto); il badge con il numero di installazioni è stato commentato, poiché funziona solo quando l'adattatore è disponibile nel repository ufficiale di ioBroker. Nessuna modifica funzionale.",
+                "es": "Solo documentación: se eliminó la dirección de correo electrónico y se corrigió la ortografía del nombre en la sección de licencia del README (el propio archivo LICENSE ya era correcto); se comentó la insignia con el número de instalaciones, ya que solo funciona cuando el adaptador está disponible en el repositorio oficial de ioBroker. Sin cambios funcionales.",
+                "pl": "Tylko dokumentacja: usunięto adres e-mail i poprawiono pisownię nazwiska w sekcji licencji w README (sam plik LICENSE był już poprawny); zakomentowano odznakę z liczbą instalacji, ponieważ działa ona dopiero, gdy adapter będzie dostępny w oficjalnym repozytorium ioBroker. Brak zmian funkcjonalnych.",
+                "uk": "Лише документація: з розділу ліцензії у README вилучено адресу електронної пошти та виправлено написання імені (сам файл LICENSE уже був коректним); значок із кількістю встановлень закоментовано, оскільки він працює лише тоді, коли адаптер доступний в офіційному репозиторії ioBroker. Без функціональних змін.",
+                "zh-cn": "仅文档更新：从 README 的许可证部分删除了电子邮件地址并更正了姓名拼写（LICENSE 文件本身已正确）；注释掉了安装数量徽章，因为只有当适配器进入 ioBroker 官方仓库后它才能正常显示。无功能性更改。"
+            },
             "1.0.7": {
                 "en": "Metadata only: standardized copyright/author to \"Stefan Bühler\" across package.json, io-package.json and LICENSE (dropped the GitHub username and email address from the copyright line; ice987987's original-author credit is unchanged). No functional changes.",
                 "de": "Nur Metadaten: Copyright/Autor auf \"Stefan Bühler\" vereinheitlicht in package.json, io-package.json und LICENSE (GitHub-Benutzername und E-Mail-Adresse aus der Copyright-Zeile entfernt; die Namensnennung von ice987987 als Original-Autor bleibt unverändert). Keine funktionalen Änderungen.",

@@ -377,6 +377,10 @@ function round(digit, digits) {
 
 <!-- ### **WORK IN PROGRESS** -->
 
+### 1.0.8 (22.07.2026)
+
+-   (Stefan Bühler) Documentation only: removed the e-mail address and corrected the name spelling in the README license section (the LICENSE file itself was already correct); commented out the number-of-installations badge, which cannot resolve until the adapter is available in the official ioBroker repository. No functional changes.
+
 ### 1.0.7 (22.07.2026)
 
 -   (Stefan Bühler) Metadata only: standardized copyright/author to "Stefan Bühler" across package.json, io-package.json and LICENSE (dropped the GitHub username and email address from the copyright line; ice987987's original-author credit is unchanged). No functional changes.
