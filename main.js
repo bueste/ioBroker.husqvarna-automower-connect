@@ -196,7 +196,10 @@ class HusqvarnaAutomower extends utils.Adapter {
 					// list that in the steady state rarely changes between polls anyway. It is still refreshed on
 					// adapter startup and on-demand via ACTIONS.REFRESHSTATISTICS.
 				} catch (error) {
-					this.log.debug(`${error} (ERR_#015)`);
+					// Was debug-only, meaning repeated failures (e.g. an expired access token) were
+					// completely invisible at the default log level. Reported by a user whose adapter
+					// silently polled into 401s for days without a single visible log line.
+					this.log.warn(`${error} (ERR_#015)`);
 				} finally {
 					this.statisticsPollInProgress = false;
 				}
@@ -2731,10 +2734,19 @@ class HusqvarnaAutomower extends utils.Adapter {
 					await this.getAccessToken();
 					await this.autoRestart();
 				} else {
-					throw new Error('Unknown WebSocket error. (ERR_#011)');
+					// Any other/unrecognised close code (1005, 1011, 4xxx, ...): treat the same as 1006
+					// instead of giving up permanently. Reported by a user whose adapter silently stopped
+					// delivering data for 6.4 days after an unhandled close code - the previous behaviour
+					// threw into the catch below and left the WebSocket down forever, since nothing here
+					// ever called getAccessToken()/autoRestart() again. The existing exponential backoff
+					// in autoRestart() already protects against hammering the API, so retrying on any
+					// close code is safe.
+					this.log.warn(`[wss.on - close]: unrecognised close code ${data} (${reason}) - attempting reconnect.`);
+					await this.getAccessToken();
+					await this.autoRestart();
 				}
 			} catch (error) {
-				this.log.debug(`[wss.close - error]: ${error}`);
+				this.log.warn(`[wss.close - error]: ${error}`);
 			}
 		});
 
@@ -2745,7 +2757,7 @@ class HusqvarnaAutomower extends utils.Adapter {
 		});
 
 		this.wss.on('error', error => {
-			this.log.debug(`[wss.on - error]: ${error}`);
+			this.log.warn(`[wss.on - error]: ${error}`);
 		});
 	}
 
